@@ -304,8 +304,9 @@ const description = computed(() => {
           >
             <span class="text-xs font-medium text-highlighted">{{ point.value }}%</span>
             <div
+              data-testid="monthly-exam-bar"
               class="w-full rounded-t bg-primary/80"
-              :style="{ height: `${Math.max(point.value, 3)}%` }"
+              :style="{ height: `${Math.max(point.value, 3)}px` }"
               :title="`${point.label}: ${point.value}%`"
             />
             <span class="w-full truncate text-center text-xs text-muted">{{ point.label }}</span>
@@ -381,8 +382,9 @@ const description = computed(() => {
           >
             <span class="text-xs font-medium text-highlighted">{{ point.value }}%</span>
             <div
+              data-testid="monthly-assignment-bar"
               class="w-full rounded-t bg-primary/80"
-              :style="{ height: `${Math.max(point.value, 3)}%` }"
+              :style="{ height: `${Math.max(point.value, 3)}px` }"
               :title="`${point.label}: ${point.value}%`"
             />
             <span class="w-full truncate text-center text-xs text-muted">{{ point.label }}</span>
@@ -426,8 +428,9 @@ const description = computed(() => {
           >
             <span class="text-xs font-medium text-highlighted">{{ point.value }}%</span>
             <div
+              data-testid="monthly-exam-bar"
               class="w-full rounded-t bg-info/80"
-              :style="{ height: `${Math.max(point.value, 3)}%` }"
+              :style="{ height: `${Math.max(point.value, 3)}px` }"
               :title="`${point.label}: ${point.value}%`"
             />
             <span class="w-full truncate text-center text-xs text-muted">{{ point.label }}</span>
