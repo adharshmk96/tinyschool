@@ -58,3 +58,33 @@ Run the API directly:
 cd tinyschool-api
 go run . --database ./tinyschool.db --address :8080
 ```
+
+## Deploy (SSH)
+
+The same script deploys from a laptop or GitHub Actions:
+
+```text
+upload source → Docker Compose builds → Caddy serves HTTPS → readiness check
+```
+
+The server needs Docker with the Compose plugin and SSH key access. Caddy was
+chosen over Traefik because this single-app setup only needs one small routing
+file and automatic HTTPS.
+
+```bash
+ssh-copy-id root@147.93.97.228
+./deploy.sh
+```
+
+Default URL: `https://tinyschool.147.93.97.228.nip.io`
+
+Override configuration with `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_PATH`, or
+`DEPLOY_DOMAIN`. SQLite and Caddy certificates remain in named Docker volumes
+between releases.
+
+### GitHub Actions
+
+Add the private key as the `DEPLOY_SSH_PRIVATE_KEY` repository secret.
+Optional repository variables use the same `DEPLOY_*` names above.
+
+The workflow deploys on pushes to `main` and can also be run manually.

@@ -1,0 +1,45 @@
+name: tinyschool
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/api.Dockerfile
+    environment:
+      TINYSCHOOL_API_ADDRESS: ":8080"
+      TINYSCHOOL_DB_PATH: /data/tinyschool.db
+    restart: unless-stopped
+    volumes:
+      - data:/data
+
+  ui:
+    build:
+      context: ..
+      dockerfile: deploy/ui.Dockerfile
+    environment:
+      NUXT_PUBLIC_API_BASE: https://${DOMAIN}/api/v1
+    restart: unless-stopped
+    depends_on:
+      - api
+
+  caddy:
+    image: caddy:2.10.2-alpine
+    environment:
+      DOMAIN: ${DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    restart: unless-stopped
+    depends_on:
+      - api
+      - ui
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  data:
+  caddy_data:
+  caddy_config:

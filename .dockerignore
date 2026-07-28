@@ -1,0 +1,14 @@
+.git
+.github
+.runs
+.env
+.env.*
+.ssh
+*.key
+*.pem
+github
+github.pub
+**/.nuxt
+**/.output
+**/node_modules
+**/*_test.go
