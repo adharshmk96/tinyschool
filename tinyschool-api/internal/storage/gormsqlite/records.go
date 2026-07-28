@@ -23,6 +23,9 @@ type userRecord struct {
 	Name         string `gorm:"not null"`
 	Email        string `gorm:"not null;uniqueIndex;collate:nocase"`
 	PasswordHash string `gorm:"not null"`
+	Role         string `gorm:"not null;default:'user';index"`
+	CreatedAt    time.Time
+	BlockedAt    *time.Time
 }
 
 type sessionRecord struct {

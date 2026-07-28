@@ -2,9 +2,23 @@ package model
 
 import "time"
 
+// RoleUser owns a school workspace. RoleAdmin only signs in to the back office
+// and never owns school data.
+const (
+	RoleUser  = "user"
+	RoleAdmin = "admin"
+)
+
 type User struct {
 	ID, Name, Email, PasswordHash string
+	Role                          string
+	CreatedAt                     time.Time
+	BlockedAt                     *time.Time
 }
+
+func (u User) IsAdmin() bool { return u.Role == RoleAdmin }
+
+func (u User) IsBlocked() bool { return u.BlockedAt != nil }
 
 type Session struct {
 	ID, UserID string

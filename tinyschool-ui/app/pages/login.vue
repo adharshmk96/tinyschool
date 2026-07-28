@@ -3,7 +3,7 @@ const route = useRoute()
 const toast = useToast()
 const { postItem } = useApi()
 const pending = ref(false)
-const form = reactive({ email: 'alex@tinyschool.local', password: 'password' })
+const form = reactive({ email: '', password: '' })
 
 async function submit() {
   if (!form.email || !form.password) {

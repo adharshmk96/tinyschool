@@ -66,6 +66,12 @@ func (a *App) Login(ctx context.Context, input dto.LoginRequest) (dto.AuthResult
 	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Password)) != nil {
 		return dto.AuthResult{}, unauthorized("invalid email or password")
 	}
+	if user.IsAdmin() {
+		return dto.AuthResult{}, unauthorized("administrators sign in from the admin console")
+	}
+	if user.IsBlocked() {
+		return dto.AuthResult{}, unauthorized("this account has been blocked")
+	}
 	return a.createSession(ctx, user)
 }
 
@@ -89,6 +95,9 @@ func (a *App) Authenticate(ctx context.Context, token string) (dto.User, error) 
 	_, user, err := a.activeSession(ctx, sessionID)
 	if err != nil {
 		return dto.User{}, err
+	}
+	if user.IsAdmin() {
+		return dto.User{}, unauthorized("admin sessions cannot access the school workspace")
 	}
 	return userDTO(user), nil
 }
@@ -198,6 +207,9 @@ func (a *App) activeSession(ctx context.Context, sessionID string) (model.Sessio
 			return model.Session{}, model.User{}, unauthorized("invalid session")
 		}
 		return model.Session{}, model.User{}, err
+	}
+	if user.IsBlocked() {
+		return model.Session{}, model.User{}, unauthorized("this account has been blocked")
 	}
 	return session, user, nil
 }

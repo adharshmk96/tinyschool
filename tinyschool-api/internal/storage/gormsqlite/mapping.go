@@ -7,7 +7,14 @@ import (
 )
 
 func userModel(r userRecord) model.User {
-	return model.User{ID: r.ID, Name: r.Name, Email: r.Email, PasswordHash: r.PasswordHash}
+	role := r.Role
+	if role == "" {
+		role = model.RoleUser
+	}
+	return model.User{
+		ID: r.ID, Name: r.Name, Email: r.Email, PasswordHash: r.PasswordHash,
+		Role: role, CreatedAt: r.CreatedAt, BlockedAt: r.BlockedAt,
+	}
 }
 
 func schoolModel(r schoolRecord) model.School {

@@ -47,6 +47,28 @@ type PasswordRequest struct {
 	NewPassword     string `json:"newPassword"`
 }
 
+// AdminUser is the back-office view of an account. It carries the moderation
+// fields the school-facing User deliberately hides.
+type AdminUser struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Email     string `json:"email"`
+	Role      string `json:"role"`
+	Blocked   bool   `json:"blocked"`
+	BlockedAt string `json:"blockedAt,omitempty"`
+	CreatedAt string `json:"createdAt,omitempty"`
+}
+
+type AdminStatus struct {
+	AdminExists bool `json:"adminExists"`
+}
+
+type AdminSetupRequest struct {
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
 type AuthResult struct {
 	User      User
 	SessionID string

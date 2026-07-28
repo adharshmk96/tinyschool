@@ -133,29 +133,58 @@ func (s *Store) ClearUserData(ctx context.Context) error {
 		return fmt.Errorf("clear user data: missing user identity")
 	}
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		steps := []struct {
-			query string
-			args  []any
-		}{
-			{"DELETE FROM assignment_students WHERE assignment_id IN (SELECT id FROM assignments WHERE user_id = ?)", []any{id}},
-			{"DELETE FROM exam_students WHERE exam_id IN (SELECT id FROM exams WHERE user_id = ?)", []any{id}},
-			{"DELETE FROM student_logs WHERE student_id IN (SELECT id FROM students WHERE user_id = ?)", []any{id}},
-			{"DELETE FROM student_grades WHERE student_id IN (SELECT id FROM students WHERE user_id = ?)", []any{id}},
-			{"DELETE FROM class_students WHERE class_id IN (SELECT id FROM classes WHERE user_id = ?)", []any{id}},
-			{"DELETE FROM exams WHERE user_id = ?", []any{id}},
-			{"DELETE FROM assignments WHERE user_id = ?", []any{id}},
-			{"DELETE FROM classes WHERE user_id = ?", []any{id}},
-			{"DELETE FROM students WHERE user_id = ?", []any{id}},
-			{"DELETE FROM academic_segments WHERE academic_year_id IN (SELECT id FROM academic_years WHERE user_id = ?)", []any{id}},
-			{"DELETE FROM academic_years WHERE user_id = ?", []any{id}},
-			{"DELETE FROM school_grades WHERE school_id IN (SELECT id FROM schools WHERE user_id = ?)", []any{id}},
-			{"DELETE FROM schools WHERE user_id = ?", []any{id}},
+		return clearOwnedData(tx, id)
+	})
+}
+
+// DeleteUser removes the account together with everything it owns. The back
+// office is the only caller, so the owner id is passed explicitly instead of
+// being read from the tenancy context.
+func (s *Store) DeleteUser(ctx context.Context, id string) error {
+	if id == "" {
+		return fmt.Errorf("delete user: missing user identity")
+	}
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := clearOwnedData(tx, id); err != nil {
+			return err
 		}
-		for _, step := range steps {
-			if err := tx.Exec(step.query, step.args...).Error; err != nil {
-				return err
-			}
+		if err := tx.Exec("DELETE FROM sessions WHERE user_id = ?", id).Error; err != nil {
+			return err
+		}
+		result := tx.Exec("DELETE FROM users WHERE id = ?", id)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return storage.ErrNotFound
 		}
 		return nil
 	})
+}
+
+func clearOwnedData(tx *gorm.DB, id string) error {
+	steps := []struct {
+		query string
+		args  []any
+	}{
+		{"DELETE FROM assignment_students WHERE assignment_id IN (SELECT id FROM assignments WHERE user_id = ?)", []any{id}},
+		{"DELETE FROM exam_students WHERE exam_id IN (SELECT id FROM exams WHERE user_id = ?)", []any{id}},
+		{"DELETE FROM student_logs WHERE student_id IN (SELECT id FROM students WHERE user_id = ?)", []any{id}},
+		{"DELETE FROM student_grades WHERE student_id IN (SELECT id FROM students WHERE user_id = ?)", []any{id}},
+		{"DELETE FROM class_students WHERE class_id IN (SELECT id FROM classes WHERE user_id = ?)", []any{id}},
+		{"DELETE FROM exams WHERE user_id = ?", []any{id}},
+		{"DELETE FROM assignments WHERE user_id = ?", []any{id}},
+		{"DELETE FROM classes WHERE user_id = ?", []any{id}},
+		{"DELETE FROM students WHERE user_id = ?", []any{id}},
+		{"DELETE FROM academic_segments WHERE academic_year_id IN (SELECT id FROM academic_years WHERE user_id = ?)", []any{id}},
+		{"DELETE FROM academic_years WHERE user_id = ?", []any{id}},
+		{"DELETE FROM school_grades WHERE school_id IN (SELECT id FROM schools WHERE user_id = ?)", []any{id}},
+		{"DELETE FROM schools WHERE user_id = ?", []any{id}},
+	}
+	for _, step := range steps {
+		if err := tx.Exec(step.query, step.args...).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }

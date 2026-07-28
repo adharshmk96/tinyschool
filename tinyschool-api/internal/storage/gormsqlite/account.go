@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"tinyschool-api/internal/model"
+	"tinyschool-api/internal/storage"
 )
 
 func (s *Store) CurrentUser(ctx context.Context) (model.User, error) {
@@ -29,10 +30,20 @@ func (s *Store) UserByEmail(ctx context.Context, email string) (model.User, erro
 }
 
 func (s *Store) CreateUser(ctx context.Context, user model.User, school *model.School) (model.User, error) {
+	role := user.Role
+	if role == "" {
+		role = model.RoleUser
+	}
+	user.Role = role
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(&userRecord{ID: user.ID, Name: user.Name, Email: user.Email, PasswordHash: user.PasswordHash}).Error; err != nil {
+		record := &userRecord{
+			ID: user.ID, Name: user.Name, Email: user.Email,
+			PasswordHash: user.PasswordHash, Role: role, CreatedAt: user.CreatedAt,
+		}
+		if err := tx.Create(record).Error; err != nil {
 			return err
 		}
+		user.CreatedAt = record.CreatedAt
 		if school != nil {
 			return createSchool(tx, user.ID, *school)
 		}
@@ -51,6 +62,64 @@ func (s *Store) UpdateUser(ctx context.Context, user model.User) (model.User, er
 		return model.User{}, storageError(gorm.ErrRecordNotFound)
 	}
 	return s.UserByID(ctx, user.ID)
+}
+
+func (s *Store) CountAdmins(ctx context.Context) (int64, error) {
+	var total int64
+	if err := s.db.WithContext(ctx).Model(&userRecord{}).Where("role = ?", model.RoleAdmin).Count(&total).Error; err != nil {
+		return 0, fmt.Errorf("count admins: %w", err)
+	}
+	return total, nil
+}
+
+var userSortColumns = map[string]string{
+	"name": "name", "email": "email", "createdAt": "created_at", "role": "role",
+}
+
+// ListUsers is the only query that deliberately ignores tenancy: the back
+// office browses every account in the database.
+func (s *Store) ListUsers(ctx context.Context, options storage.ListOptions) ([]model.User, int64, error) {
+	query := s.db.WithContext(ctx).Model(&userRecord{})
+	if options.Search != "" {
+		pattern := contains(options.Search)
+		query = query.Where("LOWER(name) LIKE ? OR LOWER(email) LIKE ?", pattern, pattern)
+	}
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("count users: %w", err)
+	}
+	var records []userRecord
+	err := paginate(order(query, options, userSortColumns, "name"), options).Find(&records).Error
+	if err != nil {
+		return nil, 0, fmt.Errorf("list users: %w", err)
+	}
+	users := make([]model.User, len(records))
+	for i := range records {
+		users[i] = userModel(records[i])
+	}
+	return users, total, nil
+}
+
+func (s *Store) SetUserBlocked(ctx context.Context, id string, blockedAt *time.Time) (model.User, error) {
+	result := s.db.WithContext(ctx).Model(&userRecord{}).Where("id = ?", id).
+		Update("blocked_at", blockedAt)
+	if result.Error != nil {
+		return model.User{}, storageError(result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return model.User{}, storage.ErrNotFound
+	}
+	return s.UserByID(ctx, id)
+}
+
+func (s *Store) RevokeUserSessions(ctx context.Context, userID string, revokedAt time.Time) error {
+	err := s.db.WithContext(ctx).Model(&sessionRecord{}).
+		Where("user_id = ? AND revoked_at IS NULL", userID).
+		Update("revoked_at", revokedAt).Error
+	if err != nil {
+		return fmt.Errorf("revoke user sessions: %w", storageError(err))
+	}
+	return nil
 }
 
 func (s *Store) CreateSession(ctx context.Context, session model.Session) (model.Session, error) {

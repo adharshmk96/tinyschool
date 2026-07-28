@@ -30,6 +30,11 @@ type Storage interface {
 	UserByEmail(context.Context, string) (model.User, error)
 	CreateUser(context.Context, model.User, *model.School) (model.User, error)
 	UpdateUser(context.Context, model.User) (model.User, error)
+	CountAdmins(context.Context) (int64, error)
+	ListUsers(context.Context, ListOptions) ([]model.User, int64, error)
+	SetUserBlocked(ctx context.Context, id string, blockedAt *time.Time) (model.User, error)
+	DeleteUser(ctx context.Context, id string) error
+	RevokeUserSessions(ctx context.Context, userID string, revokedAt time.Time) error
 	CreateSession(context.Context, model.Session) (model.Session, error)
 	Session(context.Context, string) (model.Session, error)
 	RevokeSession(context.Context, string, time.Time) error

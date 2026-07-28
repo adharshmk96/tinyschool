@@ -13,6 +13,20 @@ export interface User {
   email: string
 }
 
+export interface AdminUser {
+  id: string
+  name: string
+  email: string
+  role: 'user' | 'admin'
+  blocked: boolean
+  blockedAt?: string
+  createdAt?: string
+}
+
+export interface AdminStatus {
+  adminExists: boolean
+}
+
 export interface Overview {
   students: number
   classes: number
