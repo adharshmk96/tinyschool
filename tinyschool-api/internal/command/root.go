@@ -57,9 +57,6 @@ func NewRootCommand() *cobra.Command {
 			if err := store.AutoMigrate(command.Context()); err != nil {
 				return err
 			}
-			if err := store.Seed(command.Context()); err != nil {
-				return err
-			}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 			app := service.New(
@@ -94,5 +91,6 @@ func NewRootCommand() *cobra.Command {
 	if err := values.BindPFlags(flags); err != nil {
 		panic(fmt.Sprintf("bind command flags: %v", err))
 	}
+	command.AddCommand(newSeedCommand(values))
 	return command
 }
