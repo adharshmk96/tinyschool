@@ -6,7 +6,7 @@ useSeoMeta({ title: 'Overview' })
 
 const { getItem } = useApi()
 const { selectedYear } = useSchoolContext()
-const fallback: Overview = { students: 0, classes: 0, assignments: 0, exams: 0 }
+const fallback: Overview = { students: 0, classes: 0, assignments: 0, exams: 0, upcoming: [] }
 const { data, status, error, refresh } = await useAsyncData('overview', async () => {
   const response = await getItem<Overview>('/overview')
   return response.data
@@ -18,6 +18,19 @@ const cards = computed(() => [
   { label: 'Assignments', value: data.value?.assignments || 0, icon: 'i-lucide-clipboard-check', to: '/dashboard/assignments' },
   { label: 'Exams', value: data.value?.exams || 0, icon: 'i-lucide-file-chart-column', to: '/dashboard/exams' }
 ])
+
+const upcoming = computed(() => (data.value?.upcoming || []).map((item) => {
+  const date = new Date(`${item.date}T00:00:00`)
+  const audience = item.className || 'Individual students'
+  const students = `${item.studentCount} ${item.studentCount === 1 ? 'student' : 'students'}`
+  return {
+    ...item,
+    day: new Intl.DateTimeFormat('en', { day: '2-digit' }).format(date),
+    month: new Intl.DateTimeFormat('en', { month: 'short' }).format(date).toUpperCase(),
+    meta: `${audience} · ${students}`,
+    to: `/dashboard/${item.kind === 'exam' ? 'exams' : 'assignments'}/${item.id}`
+  }
+}))
 </script>
 
 <template>
@@ -84,7 +97,8 @@ const cards = computed(() => [
               </p>
             </div>
             <UButton
-              label="View calendar"
+              label="View assignments"
+              to="/dashboard/assignments"
               color="neutral"
               variant="ghost"
               size="sm"
@@ -92,13 +106,10 @@ const cards = computed(() => [
           </div>
         </template>
         <div class="divide-y divide-default">
-          <div
-            v-for="item in [
-              { day: '04', month: 'AUG', title: 'Mathematics assignment due', meta: 'Grade 8 · 24 students' },
-              { day: '09', month: 'AUG', title: 'Midterm examinations', meta: 'All classes · 5 days' },
-              { day: '18', month: 'AUG', title: 'Parent-teacher meeting', meta: 'Main hall · 10:00 AM' }
-            ]"
-            :key="item.title"
+          <NuxtLink
+            v-for="item in upcoming"
+            :key="`${item.kind}-${item.id}`"
+            :to="item.to"
             class="flex items-center gap-4 py-4 first:pt-0 last:pb-0"
           >
             <div class="grid size-12 shrink-0 place-items-center rounded-lg bg-elevated text-center">
@@ -112,7 +123,13 @@ const cards = computed(() => [
                 {{ item.meta }}
               </p>
             </div>
-          </div>
+          </NuxtLink>
+          <EmptyState
+            v-if="!upcoming.length"
+            icon="i-lucide-calendar-check"
+            title="Nothing coming up"
+            description="Future assignment deadlines and exam dates will appear here."
+          />
         </div>
       </UCard>
       <UCard>

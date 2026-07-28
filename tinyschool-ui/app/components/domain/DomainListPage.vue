@@ -125,12 +125,20 @@ function itemTitle(item: Item) {
   return String(item.name ?? item.fullName ?? (`${item.firstName ?? ''} ${item.lastName ?? ''}`.trim() || props.singular))
 }
 
+function setAssignmentType(type: 'class' | 'individual') {
+  form.type = type
+  form.assignees = ''
+  selectedStudentIds.value = []
+}
+
 function openCreate() {
   editing.value = null
   selectedStudentIds.value = []
   gradeRows.value = selectedYearId.value ? [{ academicYearId: selectedYearId.value, grade: '' }] : []
   for (const field of props.fields)
     form[field.key] = ''
+  if (props.endpoint.endsWith('/assignments'))
+    form.type = 'class'
   modalOpen.value = true
 }
 
@@ -147,8 +155,12 @@ function openEdit(item: Item) {
       fieldValue = fieldValue.charAt(0).toUpperCase() + fieldValue.slice(1)
     if (field.key === 'class')
       fieldValue = String((item.class as Item | undefined)?.id ?? '')
-    if (field.key === 'assignees')
-      fieldValue = Array.isArray(item.assignees) ? item.assignees.map(entry => String((entry as Item).id ?? '')).filter(Boolean).join(', ') : ''
+    if (field.key === 'assignees') {
+      const assigneeIds = Array.isArray(item.assignees) ? item.assignees.map(entry => String((entry as Item).id ?? '')).filter(Boolean) : []
+      fieldValue = String(item.type).toLowerCase() === 'class'
+        ? String((item.class as Item | undefined)?.id ?? '')
+        : assigneeIds.join(', ')
+    }
     form[field.key] = fieldValue === '—' ? '' : fieldValue
   }
   selectedStudentIds.value = form.assignees?.split(',').map(id => id.trim()).filter(Boolean) ?? []
@@ -434,23 +446,49 @@ async function remove() {
           <UFormField
             v-for="field in fields"
             :key="field.key"
-            :label="field.label"
+            :label="field.key === 'assignees' && endpoint.endsWith('/assignments')
+              ? (String(form.type).toLowerCase() === 'class' ? 'Class' : 'Student')
+              : field.label"
             required
           >
             <StudentGradesField
               v-if="field.type === 'grades'"
               v-model="gradeRows"
             />
+            <div
+              v-else-if="field.key === 'type' && endpoint.endsWith('/assignments')"
+              class="grid grid-cols-2 rounded-lg bg-elevated p-1"
+            >
+              <UButton
+                type="button"
+                label="Class"
+                icon="i-lucide-users"
+                :variant="String(form.type).toLowerCase() === 'class' ? 'solid' : 'ghost'"
+                :color="String(form.type).toLowerCase() === 'class' ? 'primary' : 'neutral'"
+                class="justify-center"
+                @click="setAssignmentType('class')"
+              />
+              <UButton
+                type="button"
+                label="Student"
+                icon="i-lucide-user"
+                :variant="String(form.type).toLowerCase() === 'individual' ? 'solid' : 'ghost'"
+                :color="String(form.type).toLowerCase() === 'individual' ? 'primary' : 'neutral'"
+                class="justify-center"
+                @click="setAssignmentType('individual')"
+              />
+            </div>
             <UTextarea
               v-else-if="field.type === 'textarea'"
               v-model="form[field.key]"
               class="w-full"
             />
-            <USelect
+            <USelectMenu
               v-else-if="field.key === 'class' || (field.key === 'assignees' && String(form.type).toLowerCase() === 'class')"
               v-model="form[field.key]"
               :items="classOptions"
               value-key="value"
+              searchable
               class="w-full"
               placeholder="Select a class"
             />
@@ -460,6 +498,7 @@ async function remove() {
               :items="studentOptions"
               value-key="value"
               multiple
+              searchable
               class="w-full"
               placeholder="Select students"
             />

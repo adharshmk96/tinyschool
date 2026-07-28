@@ -14,8 +14,9 @@ import (
 
 // SeedUserData fills the account owned by email with a demo data set: one
 // active school and current academic year (reused when they already exist),
-// ten students, five classes, four assignments per class, and four exams per
-// class. It is only ever run from the `seed` command.
+// thirty students, five classes, four assignments per class, and four exams
+// per class. Assignment and exam results are included to make dashboards and
+// performance views representative. It is only run from the `seed` command.
 func (s *Store) SeedUserData(ctx context.Context, email string) error {
 	email = strings.ToLower(strings.TrimSpace(email))
 	var user userRecord
@@ -32,6 +33,10 @@ var (
 	seedNames  = [][2]string{
 		{"Maya", "Patel"}, {"Noah", "Williams"}, {"Aarav", "Shah"}, {"Emma", "Chen"}, {"Liam", "Brown"},
 		{"Olivia", "Martin"}, {"Ethan", "Wilson"}, {"Sophia", "Garcia"}, {"Ravi", "Nair"}, {"Isla", "Fernandes"},
+		{"Arjun", "Mehta"}, {"Ava", "Thompson"}, {"Kabir", "Kapoor"}, {"Mia", "Rodriguez"}, {"Leo", "Anderson"},
+		{"Ananya", "Rao"}, {"Lucas", "Taylor"}, {"Zara", "Khan"}, {"Henry", "Moore"}, {"Diya", "Iyer"},
+		{"Jack", "Harris"}, {"Meera", "Joshi"}, {"Oliver", "Clark"}, {"Ishaan", "Gupta"}, {"Ella", "Lewis"},
+		{"Vihaan", "Singh"}, {"Amelia", "Walker"}, {"Aditya", "Desai"}, {"Grace", "Hall"}, {"Nina", "Thomas"},
 	}
 	seedSubjects = []struct{ subject, grade string }{
 		{"Mathematics", "Grade 6"}, {"Science", "Grade 6"}, {"English", "Grade 7"}, {"History", "Grade 7"}, {"Geography", "Grade 8"},
@@ -65,9 +70,9 @@ func seedUserFixtures(tx *gorm.DB, ownerID string) error {
 		if err := tx.Omit("Grades").Create(&student).Error; err != nil {
 			return fmt.Errorf("create student: %w", err)
 		}
-		// Students are enrolled two per class below, so give each the grade of
+		// Students are enrolled six per class below, so give each the grade of
 		// the class they will land in.
-		grade := seedSubjects[i/2].grade
+		grade := seedSubjects[i/6].grade
 		if err := tx.Omit("AcademicYear").Create(&studentGradeRecord{StudentID: id, AcademicYearID: year.ID, Grade: grade}).Error; err != nil {
 			return fmt.Errorf("create student grade: %w", err)
 		}
@@ -86,8 +91,8 @@ func seedUserFixtures(tx *gorm.DB, ownerID string) error {
 		if err := tx.Omit("Students").Create(&class).Error; err != nil {
 			return fmt.Errorf("create class: %w", err)
 		}
-		// Two students per class, so all ten are enrolled exactly once.
-		roster := students[i*2 : i*2+2]
+		// Six students per class, so all thirty are enrolled exactly once.
+		roster := students[i*6 : i*6+6]
 		for _, student := range roster {
 			if err := tx.Create(&classStudentRecord{ClassID: classID, StudentID: student.ID}).Error; err != nil {
 				return fmt.Errorf("enrol student: %w", err)
@@ -118,8 +123,16 @@ func seedClassAssignments(tx *gorm.DB, ownerID, schoolID, yearID string, class c
 		if err := tx.Omit("Students").Create(&record).Error; err != nil {
 			return fmt.Errorf("create assignment: %w", err)
 		}
-		for _, student := range roster {
-			if err := tx.Create(&assignmentStudentRecord{AssignmentID: id, StudentID: student.ID}).Error; err != nil {
+		for studentIndex, student := range roster {
+			row := assignmentStudentRecord{AssignmentID: id, StudentID: student.ID}
+			// Leave some work pending while producing a broad, believable score
+			// distribution for completed work.
+			if (i+studentIndex)%4 != 0 {
+				score := float64(58+((i*11+studentIndex*7)%39)) * record.TotalScore / 100
+				completedAt := time.Now().UTC().AddDate(0, 0, -(i + studentIndex + 1))
+				row.Score, row.CompletedAt = &score, &completedAt
+			}
+			if err := tx.Create(&row).Error; err != nil {
 				return fmt.Errorf("assign student: %w", err)
 			}
 		}
@@ -140,8 +153,14 @@ func seedClassExams(tx *gorm.DB, ownerID, schoolID, yearID string, class classRe
 		if err := tx.Omit("Students").Create(&record).Error; err != nil {
 			return fmt.Errorf("create exam: %w", err)
 		}
-		for _, student := range roster {
-			if err := tx.Create(&examStudentRecord{ExamID: id, StudentID: student.ID}).Error; err != nil {
+		for studentIndex, student := range roster {
+			row := examStudentRecord{ExamID: id, StudentID: student.ID}
+			if i < 2 || studentIndex%3 != 0 {
+				score := float64(55+((i*13+studentIndex*9)%42)) * record.TotalScore / 100
+				markedAt := time.Now().UTC().AddDate(0, 0, -(i*7 + studentIndex + 1))
+				row.Score, row.MarkedAt = &score, &markedAt
+			}
+			if err := tx.Create(&row).Error; err != nil {
 				return fmt.Errorf("add exam student: %w", err)
 			}
 		}

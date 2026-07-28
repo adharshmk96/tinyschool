@@ -14,9 +14,23 @@ func (a *App) Overview(ctx context.Context) (dto.Overview, error) {
 	if err != nil {
 		return dto.Overview{}, err
 	}
+	upcoming, err := a.storage.Upcoming(ctx, value.AcademicYear.ID, a.now().Format("2006-01-02"), 5)
+	if err != nil {
+		return dto.Overview{}, err
+	}
+	upcomingDTO := make([]dto.UpcomingItem, len(upcoming))
+	for index, item := range upcoming {
+		upcomingDTO[index] = dto.UpcomingItem{
+			ID: item.ID, Kind: item.Kind, Title: item.Name, Date: item.Date,
+			StudentCount: item.StudentCount,
+		}
+		if item.Class != nil {
+			upcomingDTO[index].ClassName = item.Class.Name
+		}
+	}
 	return dto.Overview{
 		Students: value.Students, Classes: value.Classes, Assignments: value.Assignments, Exams: value.Exams,
-		School: referenceDTO(value.School), AcademicYear: referenceDTO(value.AcademicYear),
+		School: referenceDTO(value.School), AcademicYear: referenceDTO(value.AcademicYear), Upcoming: upcomingDTO,
 	}, nil
 }
 

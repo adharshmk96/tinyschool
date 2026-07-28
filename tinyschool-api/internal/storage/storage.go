@@ -41,6 +41,7 @@ type Storage interface {
 	RevokeOtherSessions(ctx context.Context, userID, exceptSessionID string, revokedAt time.Time) error
 	ClearUserData(context.Context) error
 	Overview(context.Context) (model.Overview, error)
+	Upcoming(context.Context, string, string, int) ([]model.UpcomingItem, error)
 
 	ListSchools(context.Context, ListOptions) ([]model.School, int64, error)
 	School(context.Context, string) (model.School, error)

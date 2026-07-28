@@ -77,12 +77,22 @@ type AuthResult struct {
 }
 
 type Overview struct {
-	Students     int       `json:"students"`
-	Classes      int       `json:"classes"`
-	Assignments  int       `json:"assignments"`
-	Exams        int       `json:"exams"`
-	School       Reference `json:"school"`
-	AcademicYear Reference `json:"academicYear"`
+	Students     int            `json:"students"`
+	Classes      int            `json:"classes"`
+	Assignments  int            `json:"assignments"`
+	Exams        int            `json:"exams"`
+	School       Reference      `json:"school"`
+	AcademicYear Reference      `json:"academicYear"`
+	Upcoming     []UpcomingItem `json:"upcoming"`
+}
+
+type UpcomingItem struct {
+	ID           string `json:"id"`
+	Kind         string `json:"kind"`
+	Title        string `json:"title"`
+	Date         string `json:"date"`
+	ClassName    string `json:"className,omitempty"`
+	StudentCount int    `json:"studentCount"`
 }
 
 type School struct {
@@ -153,13 +163,47 @@ type UpdateClassRequest struct {
 }
 
 type Performance struct {
-	AverageScore   float64   `json:"averageScore"`
-	ClassAverage   float64   `json:"classAverage,omitempty"`
-	CompletionRate int       `json:"completionRate"`
-	Completed      int       `json:"completed"`
-	Total          int       `json:"total"`
-	Standing       string    `json:"standing"`
-	Trend          []float64 `json:"trend"`
+	AverageScore           float64            `json:"averageScore"`
+	ClassAverage           float64            `json:"classAverage,omitempty"`
+	CompletionRate         int                `json:"completionRate"`
+	Completed              int                `json:"completed"`
+	Total                  int                `json:"total"`
+	Standing               string             `json:"standing"`
+	Trend                  []float64          `json:"trend"`
+	HighestScore           float64            `json:"highestScore,omitempty"`
+	LowestScore            float64            `json:"lowestScore,omitempty"`
+	MedianScore            float64            `json:"medianScore,omitempty"`
+	AssignmentCompleted    int                `json:"assignmentCompleted,omitempty"`
+	AssignmentTotal        int                `json:"assignmentTotal,omitempty"`
+	AssignmentCompletion   int                `json:"assignmentCompletion,omitempty"`
+	ExamCompleted          int                `json:"examCompleted,omitempty"`
+	ExamTotal              int                `json:"examTotal,omitempty"`
+	ExamCompletion         int                `json:"examCompletion,omitempty"`
+	AssignmentAverage      float64            `json:"assignmentAverage,omitempty"`
+	ExamAverage            float64            `json:"examAverage,omitempty"`
+	StrongestArea          string             `json:"strongestArea,omitempty"`
+	ScoreConsistency       int                `json:"scoreConsistency,omitempty"`
+	BestResult             *PerformanceResult `json:"bestResult,omitempty"`
+	TopStudents            []RankedStudent    `json:"topStudents,omitempty"`
+	MonthlyExamTrend       []TrendPoint       `json:"monthlyExamTrend,omitempty"`
+	MonthlyAssignmentTrend []TrendPoint       `json:"monthlyAssignmentTrend,omitempty"`
+}
+
+type PerformanceResult struct {
+	Name  string  `json:"name"`
+	Kind  string  `json:"kind"`
+	Score float64 `json:"score"`
+}
+
+type RankedStudent struct {
+	ID    string  `json:"id"`
+	Name  string  `json:"name"`
+	Score float64 `json:"score"`
+}
+
+type TrendPoint struct {
+	Label string  `json:"label"`
+	Value float64 `json:"value"`
 }
 
 type Class struct {
@@ -311,6 +355,7 @@ type Assignment struct {
 	AssigneeCount   int                  `json:"assigneeCount"`
 	CompletionCount int                  `json:"completionCount"`
 	Completion      int                  `json:"completion"`
+	Performance     *Performance         `json:"performance,omitempty"`
 	Assignees       []AssignmentAssignee `json:"assignees,omitempty"`
 }
 

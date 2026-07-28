@@ -18,10 +18,6 @@ const form = reactive({
 })
 
 const durationDays = computed(() => form.segments.reduce((sum, segment) => sum + Number(segment.durationDays || 0), 0))
-const typeOptions = [
-  { label: 'Term', value: 'term' },
-  { label: 'Vacation', value: 'vacation' }
-]
 
 function addSegment() {
   form.segments.push({ name: `Term ${form.segments.filter(item => item.type === 'term').length + 1}`, type: 'term', durationDays: 30 })
@@ -112,7 +108,7 @@ function submit() {
         <div
           v-for="(segment, index) in form.segments"
           :key="index"
-          class="grid items-end gap-3 rounded-lg border border-default p-4 sm:grid-cols-[1fr_10rem_8rem_auto]"
+          class="grid items-end gap-3 rounded-lg border border-default p-4 sm:grid-cols-[1fr_15rem_8rem_auto]"
         >
           <UFormField
             :label="`Segment ${index + 1}`"
@@ -127,11 +123,26 @@ function submit() {
             label="Type"
             required
           >
-            <USelect
-              v-model="segment.type"
-              :items="typeOptions"
-              class="w-full"
-            />
+            <div class="grid grid-cols-2 rounded-lg bg-elevated p-1">
+              <UButton
+                type="button"
+                label="Term"
+                icon="i-lucide-book-open"
+                :variant="segment.type === 'term' ? 'solid' : 'ghost'"
+                :color="segment.type === 'term' ? 'primary' : 'neutral'"
+                class="justify-center"
+                @click="segment.type = 'term'"
+              />
+              <UButton
+                type="button"
+                label="Vacation"
+                icon="i-lucide-palmtree"
+                :variant="segment.type === 'vacation' ? 'solid' : 'ghost'"
+                :color="segment.type === 'vacation' ? 'primary' : 'neutral'"
+                class="justify-center"
+                @click="segment.type = 'vacation'"
+              />
+            </div>
           </UFormField>
           <UFormField
             label="Duration (days)"

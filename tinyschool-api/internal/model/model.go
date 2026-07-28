@@ -139,3 +139,9 @@ type Overview struct {
 	Students, Classes, Assignments, Exams int
 	School, AcademicYear                  Reference
 }
+
+type UpcomingItem struct {
+	ID, Kind, Name, Date string
+	Class                *Reference
+	StudentCount         int
+}

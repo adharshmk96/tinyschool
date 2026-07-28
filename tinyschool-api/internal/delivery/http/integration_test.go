@@ -1,6 +1,7 @@
 package httpdelivery
 
 import (
+	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
@@ -8,7 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"tinyschool-api/internal/dto"
 	"tinyschool-api/internal/service"
 	"tinyschool-api/internal/storage"
 	"tinyschool-api/internal/storage/gormsqlite"
@@ -29,7 +32,11 @@ func TestSQLiteAuthenticationAndPersistentMutation(t *testing.T) {
 	}
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	app := service.New(store, service.WithJWTSecret([]byte(strings.Repeat("s", 32))))
+	app := service.New(
+		store,
+		service.WithJWTSecret([]byte(strings.Repeat("s", 32))),
+		service.WithClock(func() time.Time { return time.Date(2026, 7, 28, 12, 0, 0, 0, time.UTC) }),
+	)
 	handler := NewHandler(app, logger)
 	login := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(
 		`{"email":"alex@tinyschool.local","password":"password"}`,
@@ -42,6 +49,26 @@ func TestSQLiteAuthenticationAndPersistentMutation(t *testing.T) {
 	cookies := loginResponse.Result().Cookies()
 	if len(cookies) != 1 {
 		t.Fatalf("login cookies = %d", len(cookies))
+	}
+
+	overview := httptest.NewRequest(http.MethodGet, "/api/v1/overview", nil)
+	overview.AddCookie(cookies[0])
+	overviewResponse := httptest.NewRecorder()
+	handler.ServeHTTP(overviewResponse, overview)
+	if overviewResponse.Code != http.StatusOK {
+		t.Fatalf("overview status = %d, body = %s", overviewResponse.Code, overviewResponse.Body.String())
+	}
+	var overviewBody struct {
+		Data dto.Overview `json:"data"`
+	}
+	if err := json.Unmarshal(overviewResponse.Body.Bytes(), &overviewBody); err != nil {
+		t.Fatal(err)
+	}
+	if len(overviewBody.Data.Upcoming) != 5 {
+		t.Fatalf("upcoming items = %d, want 5", len(overviewBody.Data.Upcoming))
+	}
+	if first := overviewBody.Data.Upcoming[0]; first.ID != "asg_006" || first.Date != "2026-07-30" {
+		t.Fatalf("first upcoming item = %+v", first)
 	}
 
 	create := httptest.NewRequest(http.MethodPost, "/api/v1/schools", strings.NewReader(

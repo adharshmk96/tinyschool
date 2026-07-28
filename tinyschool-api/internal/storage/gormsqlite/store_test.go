@@ -86,6 +86,47 @@ func TestStoreMigrateSeedAndPersist(t *testing.T) {
 	}
 }
 
+func TestSeedUserDataCreatesRealisticScoredData(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "school.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	ctx := context.Background()
+	if err := store.AutoMigrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.db.Create(&userRecord{ID: "usr_seed", Name: "Demo Teacher", Email: "demo@example.test", PasswordHash: "unused"}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SeedUserData(ctx, "demo@example.test"); err != nil {
+		t.Fatal(err)
+	}
+
+	var students, assignments, scoredAssignments, scoredExams int64
+	for label, query := range map[string]struct {
+		target *int64
+		table  string
+		where  string
+		args   []any
+	}{
+		"students":          {&students, "students", "user_id = ?", []any{"usr_seed"}},
+		"assignments":       {&assignments, "assignments", "user_id = ?", []any{"usr_seed"}},
+		"assignment scores": {&scoredAssignments, "assignment_students", "score IS NOT NULL", nil},
+		"exam scores":       {&scoredExams, "exam_students", "score IS NOT NULL", nil},
+	} {
+		if err := store.db.Table(query.table).Where(query.where, query.args...).Count(query.target).Error; err != nil {
+			t.Fatalf("count %s: %v", label, err)
+		}
+	}
+	if students != 30 || assignments != 20 {
+		t.Fatalf("seeded students=%d assignments=%d, want 30 and 20", students, assignments)
+	}
+	if scoredAssignments == 0 || scoredExams == 0 {
+		t.Fatalf("seeded assignment scores=%d exam scores=%d, want both populated", scoredAssignments, scoredExams)
+	}
+}
+
 func TestStudentGradesFollowAcademicYear(t *testing.T) {
 	ctx := tenancy.WithUserID(context.Background(), "usr_001")
 	store, err := Open(filepath.Join(t.TempDir(), "school.db"))

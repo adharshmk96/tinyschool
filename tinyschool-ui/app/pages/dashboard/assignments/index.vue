@@ -18,6 +18,7 @@ definePageMeta({ layout: 'dashboard' })
     ]"
     :card-fields="[
       { key: 'type', label: 'Type' },
+      { key: 'class.name', label: 'Class' },
       { key: 'dueDate', label: 'Due date' },
       { key: 'totalScore', label: 'Total score' },
       { key: 'completion', label: 'Completion' }
@@ -27,7 +28,7 @@ definePageMeta({ layout: 'dashboard' })
       { key: 'type', label: 'Type', options: ['Class', 'Individual'] },
       { key: 'dueDate', label: 'Due date', type: 'date' },
       { key: 'totalScore', label: 'Total score', type: 'number' },
-      { key: 'assignees', label: 'Class or students (comma separated)' }
+      { key: 'assignees', label: 'Class' }
     ]"
   />
 </template>

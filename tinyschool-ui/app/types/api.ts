@@ -32,6 +32,16 @@ export interface Overview {
   classes: number
   assignments: number
   exams: number
+  upcoming: UpcomingItem[]
+}
+
+export interface UpcomingItem {
+  id: string
+  kind: 'assignment' | 'exam'
+  title: string
+  date: string
+  className?: string
+  studentCount: number
 }
 
 export interface School {

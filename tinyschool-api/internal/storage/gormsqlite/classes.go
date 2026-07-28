@@ -2,6 +2,7 @@ package gormsqlite
 
 import (
 	"context"
+	"sort"
 
 	"gorm.io/gorm"
 
@@ -45,12 +46,65 @@ func (s *Store) Class(ctx context.Context, id string) (model.Class, error) {
 	for _, a := range assignments {
 		result.Assignments = append(result.Assignments, model.Reference{ID: a.ID, Name: a.Name})
 	}
+	var assignmentScores []assignmentStudentRecord
+	if err := s.db.WithContext(ctx).
+		Joins("JOIN assignments ON assignments.id = assignment_students.assignment_id").
+		Where("assignments.user_id = ? AND assignments.class_id = ?", userID(ctx), id).
+		Find(&assignmentScores).Error; err != nil {
+		return model.Class{}, err
+	}
+	assignmentByID := make(map[string]assignmentRecord, len(assignments))
+	for _, assignment := range assignments {
+		assignmentByID[assignment.ID] = assignment
+	}
+	studentIndex := make(map[string]int, len(result.Students))
+	for index, student := range result.Students {
+		studentIndex[student.ID] = index
+	}
+	for _, row := range assignmentScores {
+		assignment, ok := assignmentByID[row.AssignmentID]
+		index, enrolled := studentIndex[row.StudentID]
+		if !ok || !enrolled {
+			continue
+		}
+		result.Students[index].Assignments = append(result.Students[index].Assignments, model.Result{
+			ID: assignment.ID, Name: assignment.Name, Kind: "assignment", DueAt: assignment.DueDate,
+			Score: row.Score, TotalScore: assignment.TotalScore, CompletedAt: row.CompletedAt,
+		})
+	}
 	var exams []examRecord
 	if err := s.db.WithContext(ctx).Where("user_id = ? AND class_id = ?", userID(ctx), id).Order("name").Find(&exams).Error; err != nil {
 		return model.Class{}, err
 	}
 	for _, exam := range exams {
 		result.Exams = append(result.Exams, model.Reference{ID: exam.ID, Name: exam.Name})
+	}
+	var examScores []examStudentRecord
+	if err := s.db.WithContext(ctx).
+		Joins("JOIN exams ON exams.id = exam_students.exam_id").
+		Where("exams.user_id = ? AND exams.class_id = ?", userID(ctx), id).
+		Find(&examScores).Error; err != nil {
+		return model.Class{}, err
+	}
+	examByID := make(map[string]examRecord, len(exams))
+	for _, exam := range exams {
+		examByID[exam.ID] = exam
+	}
+	for _, row := range examScores {
+		exam, ok := examByID[row.ExamID]
+		index, enrolled := studentIndex[row.StudentID]
+		if !ok || !enrolled {
+			continue
+		}
+		result.Students[index].Exams = append(result.Students[index].Exams, model.Result{
+			ID: exam.ID, Name: exam.Name, Kind: "exam", DueAt: exam.ExamDate,
+			Score: row.Score, TotalScore: exam.TotalScore, CompletedAt: row.MarkedAt,
+		})
+	}
+	for index := range result.Students {
+		sort.Slice(result.Students[index].Exams, func(i, j int) bool {
+			return result.Students[index].Exams[i].DueAt < result.Students[index].Exams[j].DueAt
+		})
 	}
 	return result, nil
 }

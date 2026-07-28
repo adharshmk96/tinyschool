@@ -3,6 +3,7 @@ package gormsqlite
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	"gorm.io/gorm"
@@ -185,4 +186,59 @@ func (s *Store) Overview(ctx context.Context) (model.Overview, error) {
 	}
 	overview.AcademicYear = model.Reference{ID: year.ID, Name: year.Name}
 	return overview, nil
+}
+
+func (s *Store) Upcoming(ctx context.Context, academicYearID, fromDate string, limit int) ([]model.UpcomingItem, error) {
+	if limit < 1 {
+		return []model.UpcomingItem{}, nil
+	}
+
+	var assignments []assignmentRecord
+	err := assignmentPreloads(s.db.WithContext(ctx)).
+		Where("assignments.user_id = ? AND assignments.academic_year_id = ? AND assignments.due_date >= ?", userID(ctx), academicYearID, fromDate).
+		Order("assignments.due_date ASC, assignments.name ASC").
+		Limit(limit).
+		Find(&assignments).Error
+	if err != nil {
+		return nil, storageError(err)
+	}
+
+	var exams []examRecord
+	err = examPreloads(s.db.WithContext(ctx)).
+		Where("exams.user_id = ? AND exams.academic_year_id = ? AND exams.exam_date >= ?", userID(ctx), academicYearID, fromDate).
+		Order("exams.exam_date ASC, exams.name ASC").
+		Limit(limit).
+		Find(&exams).Error
+	if err != nil {
+		return nil, storageError(err)
+	}
+
+	items := make([]model.UpcomingItem, 0, len(assignments)+len(exams))
+	for _, record := range assignments {
+		item := model.UpcomingItem{
+			ID: record.ID, Kind: "assignment", Name: record.Name, Date: record.DueDate,
+			StudentCount: len(record.Students),
+		}
+		if record.Class != nil {
+			item.Class = &model.Reference{ID: record.Class.ID, Name: record.Class.Name}
+		}
+		items = append(items, item)
+	}
+	for _, record := range exams {
+		items = append(items, model.UpcomingItem{
+			ID: record.ID, Kind: "exam", Name: record.Name, Date: record.ExamDate,
+			Class:        &model.Reference{ID: record.Class.ID, Name: record.Class.Name},
+			StudentCount: len(record.Students),
+		})
+	}
+	sort.SliceStable(items, func(i, j int) bool {
+		if items[i].Date == items[j].Date {
+			return items[i].Name < items[j].Name
+		}
+		return items[i].Date < items[j].Date
+	})
+	if len(items) > limit {
+		items = items[:limit]
+	}
+	return items, nil
 }

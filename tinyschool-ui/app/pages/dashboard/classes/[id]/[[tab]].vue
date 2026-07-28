@@ -35,6 +35,7 @@ onMounted(() => {
     <template #default="{ item }">
       <DomainPerformancePanel
         v-if="activeTab === 'performance'"
+        mode="class"
         subject="Assignments"
         :data="item.performance"
       />
