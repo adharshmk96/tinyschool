@@ -103,7 +103,7 @@ func TestSeedUserDataCreatesRealisticScoredData(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var students, assignments, scoredAssignments, scoredExams int64
+	var students, classes, assignments, exams, assignmentRows, scoredAssignments, examRows, scoredExams int64
 	for label, query := range map[string]struct {
 		target *int64
 		table  string
@@ -111,19 +111,23 @@ func TestSeedUserDataCreatesRealisticScoredData(t *testing.T) {
 		args   []any
 	}{
 		"students":          {&students, "students", "user_id = ?", []any{"usr_seed"}},
+		"classes":           {&classes, "classes", "user_id = ?", []any{"usr_seed"}},
 		"assignments":       {&assignments, "assignments", "user_id = ?", []any{"usr_seed"}},
+		"exams":             {&exams, "exams", "user_id = ?", []any{"usr_seed"}},
+		"assignment rows":   {&assignmentRows, "assignment_students", "1 = 1", nil},
 		"assignment scores": {&scoredAssignments, "assignment_students", "score IS NOT NULL", nil},
+		"exam rows":         {&examRows, "exam_students", "1 = 1", nil},
 		"exam scores":       {&scoredExams, "exam_students", "score IS NOT NULL", nil},
 	} {
 		if err := store.db.Table(query.table).Where(query.where, query.args...).Count(query.target).Error; err != nil {
 			t.Fatalf("count %s: %v", label, err)
 		}
 	}
-	if students != 30 || assignments != 20 {
-		t.Fatalf("seeded students=%d assignments=%d, want 30 and 20", students, assignments)
+	if students != 40 || classes != 4 || assignments != 16 || exams != 16 {
+		t.Fatalf("seeded students=%d classes=%d assignments=%d exams=%d, want 40, 4, 16, 16", students, classes, assignments, exams)
 	}
-	if scoredAssignments == 0 || scoredExams == 0 {
-		t.Fatalf("seeded assignment scores=%d exam scores=%d, want both populated", scoredAssignments, scoredExams)
+	if assignmentRows != 160 || scoredAssignments != assignmentRows || examRows != 160 || scoredExams != examRows {
+		t.Fatalf("assignment scores=%d/%d exam scores=%d/%d, want 160/160 for both", scoredAssignments, assignmentRows, scoredExams, examRows)
 	}
 }
 
