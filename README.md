@@ -23,13 +23,8 @@ Stop both servers with:
 ./stop-local.sh
 ```
 
-Local data is stored in `.runs/local/tinyschool.db`. A new database is migrated
-and seeded automatically. The seeded login is:
-
-```text
-alex@tinyschool.local
-password
-```
+Local data is stored in `.runs/local/tinyschool.db`. A new database starts
+empty; create an account from the registration page.
 
 ## API architecture
 

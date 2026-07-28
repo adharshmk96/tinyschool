@@ -1,5 +1,6 @@
 .git
 .github
+.keys
 .runs
 .env
 .env.*

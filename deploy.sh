@@ -7,6 +7,7 @@ DEPLOY_HOST="${DEPLOY_HOST:-147.93.97.228}"
 DEPLOY_USER="${DEPLOY_USER:-root}"
 DEPLOY_PATH="${DEPLOY_PATH:-/opt/tinyschool}"
 DEPLOY_DOMAIN="${DEPLOY_DOMAIN:-tinyschool.${DEPLOY_HOST}.nip.io}"
+DEPLOY_SSH_KEY="${DEPLOY_SSH_KEY:-}"
 REMOTE="${DEPLOY_USER}@${DEPLOY_HOST}"
 RELEASE_ID="${GITHUB_SHA:-$(date -u +%Y%m%d%H%M%S)}"
 RELEASE_ID="${RELEASE_ID:0:16}"
@@ -29,10 +30,18 @@ command -v curl >/dev/null || fail "curl is required"
 [[ "${DEPLOY_DOMAIN}" =~ ^[a-zA-Z0-9.-]+$ ]] || fail "DEPLOY_DOMAIN contains unsupported characters"
 [[ "${RELEASE_ID}" =~ ^[a-zA-Z0-9._-]+$ ]] || fail "release ID contains unsupported characters"
 
-SSH=(ssh -o BatchMode=yes -o ConnectTimeout=10 "${REMOTE}")
+SSH=(ssh -o BatchMode=yes -o ConnectTimeout=10)
+if [[ -n "${DEPLOY_SSH_KEY}" ]]; then
+  [[ -f "${DEPLOY_SSH_KEY}" ]] || fail "DEPLOY_SSH_KEY does not exist"
+  SSH+=(-o IdentitiesOnly=yes -i "${DEPLOY_SSH_KEY}")
+fi
+SSH+=("${REMOTE}")
 REMOTE_RELEASE="${DEPLOY_PATH}/releases/${RELEASE_ID}"
 
-log "Checking ${REMOTE}"
+log "Checking SSH access to ${REMOTE}"
+"${SSH[@]}" "true" || fail "SSH authentication failed for ${REMOTE}"
+
+log "Checking Docker Compose"
 "${SSH[@]}" "docker compose version >/dev/null 2>&1" \
   || fail "Docker Compose is not available on ${REMOTE}"
 
@@ -41,6 +50,7 @@ log "Uploading release ${RELEASE_ID}"
 tar \
   --exclude=.git \
   --exclude=.github \
+  --exclude=.keys \
   --exclude=.runs \
   --exclude=.env \
   --exclude='.env.*' \
