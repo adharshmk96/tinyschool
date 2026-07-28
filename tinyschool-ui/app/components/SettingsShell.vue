@@ -19,6 +19,8 @@ const breadcrumbs = computed(() => {
     items.push({ label: 'My schools', icon: 'i-lucide-school' })
   } else if (route.path.endsWith('/account')) {
     items.push({ label: 'Account', icon: 'i-lucide-user-round' })
+  } else if (route.path.endsWith('/data')) {
+    items.push({ label: 'Data', icon: 'i-lucide-database' })
   }
 
   return items

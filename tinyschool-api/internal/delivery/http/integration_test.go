@@ -12,6 +12,7 @@ import (
 	"tinyschool-api/internal/service"
 	"tinyschool-api/internal/storage"
 	"tinyschool-api/internal/storage/gormsqlite"
+	"tinyschool-api/internal/tenancy"
 )
 
 func TestSQLiteAuthenticationAndPersistentMutation(t *testing.T) {
@@ -61,7 +62,7 @@ func TestSQLiteAuthenticationAndPersistentMutation(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer reopened.Close()
-	items, total, err := reopened.ListSchools(t.Context(), storage.ListOptions{
+	items, total, err := reopened.ListSchools(tenancy.WithUserID(t.Context(), "usr_001"), storage.ListOptions{
 		Sort: "name", Order: "asc", Page: 1, PageSize: 100,
 	})
 	if err != nil {

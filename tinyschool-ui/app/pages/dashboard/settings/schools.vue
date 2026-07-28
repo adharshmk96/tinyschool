@@ -6,7 +6,8 @@ useSeoMeta({ title: 'School settings' })
 
 const toast = useToast()
 const { postItem, patchItem, request } = useApi()
-const { schools, selectedSchoolId, load } = useSchoolContext()
+const route = useRoute()
+const { schools, academicYears, selectedSchoolId, load } = useSchoolContext()
 const modalOpen = ref(false)
 const deleteOpen = ref(false)
 const editingId = ref<string | null>(null)
@@ -52,6 +53,8 @@ async function save() {
     }
     modalOpen.value = false
     toast.add({ title: editingId.value ? 'School updated' : 'School created', color: 'success' })
+    if (!editingId.value && route.query.onboarding === '1' && !academicYears.value.length)
+      await navigateTo('/dashboard/settings/academic-years/create?onboarding=1')
   } catch (error) {
     toast.add({ title: 'Could not save school', description: apiErrorMessage(error, 'Please try again.'), color: 'error' })
   } finally {
@@ -87,6 +90,8 @@ async function remove() {
 onMounted(async () => {
   try {
     await load()
+    if (route.query.create === '1')
+      openCreate()
   } catch {
     toast.add({ title: 'Could not load schools', color: 'error' })
   }

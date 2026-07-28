@@ -10,7 +10,7 @@ import (
 )
 
 func (s *Store) ListClasses(ctx context.Context, options storage.ListOptions) ([]model.Class, int64, error) {
-	query := s.db.WithContext(ctx).Model(&classRecord{})
+	query := s.db.WithContext(ctx).Model(&classRecord{}).Where("classes.user_id = ?", userID(ctx))
 	if options.Search != "" {
 		p := contains(options.Search)
 		query = query.Where("LOWER(name) LIKE ? OR LOWER(subject) LIKE ? OR LOWER(grade) LIKE ? OR LOWER(description) LIKE ?", p, p, p, p)
@@ -31,19 +31,19 @@ func (s *Store) ListClasses(ctx context.Context, options storage.ListOptions) ([
 
 func (s *Store) Class(ctx context.Context, id string) (model.Class, error) {
 	var record classRecord
-	if err := s.db.WithContext(ctx).Preload("Students").First(&record, "id = ?", id).Error; err != nil {
+	if err := s.db.WithContext(ctx).Preload("Students").First(&record, "id = ? AND user_id = ?", id, userID(ctx)).Error; err != nil {
 		return model.Class{}, storageError(err)
 	}
 	result := classModel(record)
 	var assignments []assignmentRecord
-	if err := s.db.WithContext(ctx).Where("class_id = ?", id).Order("name").Find(&assignments).Error; err != nil {
+	if err := s.db.WithContext(ctx).Where("user_id = ? AND class_id = ?", userID(ctx), id).Order("name").Find(&assignments).Error; err != nil {
 		return model.Class{}, err
 	}
 	for _, a := range assignments {
 		result.Assignments = append(result.Assignments, model.Reference{ID: a.ID, Name: a.Name})
 	}
 	var exams []examRecord
-	if err := s.db.WithContext(ctx).Where("class_id = ?", id).Order("name").Find(&exams).Error; err != nil {
+	if err := s.db.WithContext(ctx).Where("user_id = ? AND class_id = ?", userID(ctx), id).Order("name").Find(&exams).Error; err != nil {
 		return model.Class{}, err
 	}
 	for _, exam := range exams {
@@ -52,8 +52,8 @@ func (s *Store) Class(ctx context.Context, id string) (model.Class, error) {
 	return result, nil
 }
 
-func classRecordFrom(m model.Class) classRecord {
-	return classRecord{ID: m.ID, SchoolID: m.SchoolID, AcademicYearID: m.AcademicYearID, Name: m.Name, Subject: m.Subject, Grade: m.Grade, Description: m.Description}
+func classRecordFrom(ownerID string, m model.Class) classRecord {
+	return classRecord{ID: m.ID, UserID: ownerID, SchoolID: m.SchoolID, AcademicYearID: m.AcademicYearID, Name: m.Name, Subject: m.Subject, Grade: m.Grade, Description: m.Description}
 }
 
 func replaceClassStudents(tx *gorm.DB, classID string, studentIDs []string) error {
@@ -70,7 +70,7 @@ func replaceClassStudents(tx *gorm.DB, classID string, studentIDs []string) erro
 
 func (s *Store) CreateClass(ctx context.Context, class model.Class, studentIDs []string) (model.Class, error) {
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(&[]classRecord{classRecordFrom(class)}).Error; err != nil {
+		if err := tx.Create(&[]classRecord{classRecordFrom(userID(ctx), class)}).Error; err != nil {
 			return err
 		}
 		return replaceClassStudents(tx, class.ID, studentIDs)
@@ -80,7 +80,7 @@ func (s *Store) CreateClass(ctx context.Context, class model.Class, studentIDs [
 
 func (s *Store) UpdateClass(ctx context.Context, class model.Class, studentIDs *[]string) (model.Class, error) {
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		result := tx.Model(&classRecord{}).Where("id = ?", class.ID).Updates(map[string]any{
+		result := tx.Model(&classRecord{}).Where("id = ? AND user_id = ?", class.ID, userID(ctx)).Updates(map[string]any{
 			"school_id": class.SchoolID, "academic_year_id": class.AcademicYearID, "name": class.Name,
 			"subject": class.Subject, "grade": class.Grade, "description": class.Description,
 		})
@@ -99,7 +99,7 @@ func (s *Store) UpdateClass(ctx context.Context, class model.Class, studentIDs *
 }
 
 func (s *Store) DeleteClass(ctx context.Context, id string) error {
-	result := s.db.WithContext(ctx).Delete(&classRecord{}, "id = ?", id)
+	result := s.db.WithContext(ctx).Delete(&classRecord{}, "id = ? AND user_id = ?", id, userID(ctx))
 	if result.Error != nil {
 		return storageError(result.Error)
 	}

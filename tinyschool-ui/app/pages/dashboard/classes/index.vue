@@ -1,5 +1,12 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'dashboard' })
+const { selectedSchool } = useSchoolContext()
+const fields = computed(() => [
+  { key: 'name', label: 'Class name' },
+  { key: 'subject', label: 'Subject' },
+  { key: 'grade', label: 'Grade', options: selectedSchool.value?.grades || [] },
+  { key: 'description', label: 'Description', type: 'textarea' }
+])
 </script>
 
 <template>
@@ -21,11 +28,6 @@ definePageMeta({ layout: 'dashboard' })
       { key: 'studentCount', label: 'Students' },
       { key: 'description', label: 'Description' }
     ]"
-    :fields="[
-      { key: 'name', label: 'Class name' },
-      { key: 'subject', label: 'Subject' },
-      { key: 'grade', label: 'Grade', options: ['Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10'] },
-      { key: 'description', label: 'Description', type: 'textarea' }
-    ]"
+    :fields="fields"
   />
 </template>

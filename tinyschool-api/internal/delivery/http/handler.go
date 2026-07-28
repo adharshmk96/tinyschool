@@ -8,6 +8,7 @@ import (
 
 	"tinyschool-api/internal/dto"
 	"tinyschool-api/internal/service"
+	"tinyschool-api/internal/tenancy"
 )
 
 const sessionCookieName = "tinyschool_session"
@@ -72,6 +73,7 @@ func (h *Handler) authenticate(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), identityContextKey{}, identity{
 			UserID: user.ID, SessionID: sessionID,
 		})
+		ctx = tenancy.WithUserID(ctx, user.ID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

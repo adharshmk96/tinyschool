@@ -33,6 +33,7 @@ type Storage interface {
 	Session(context.Context, string) (model.Session, error)
 	RevokeSession(context.Context, string, time.Time) error
 	RevokeOtherSessions(ctx context.Context, userID, exceptSessionID string, revokedAt time.Time) error
+	ClearUserData(context.Context) error
 	Overview(context.Context) (model.Overview, error)
 
 	ListSchools(context.Context, ListOptions) ([]model.School, int64, error)

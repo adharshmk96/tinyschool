@@ -35,6 +35,7 @@ export interface AcademicSegment {
 
 export interface AcademicYear {
   id: string
+  schoolId?: string
   name: string
   startDate: string
   durationDays: number

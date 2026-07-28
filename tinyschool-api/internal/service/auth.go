@@ -18,12 +18,12 @@ import (
 	"tinyschool-api/internal/dto"
 	"tinyschool-api/internal/model"
 	"tinyschool-api/internal/storage"
+	"tinyschool-api/internal/tenancy"
 )
 
 func (a *App) Register(ctx context.Context, input dto.RegisterRequest) (dto.AuthResult, error) {
 	input.Name = strings.TrimSpace(input.Name)
 	input.Email = strings.ToLower(strings.TrimSpace(input.Email))
-	input.SchoolName = strings.TrimSpace(input.SchoolName)
 	if input.Name == "" {
 		return dto.AuthResult{}, validation("name is required")
 	}
@@ -41,19 +41,10 @@ func (a *App) Register(ctx context.Context, input dto.RegisterRequest) (dto.Auth
 	if err != nil {
 		return dto.AuthResult{}, err
 	}
-	var school *model.School
-	if input.SchoolName != "" {
-		schoolID, idErr := a.newID("sch")
-		if idErr != nil {
-			return dto.AuthResult{}, idErr
-		}
-		school = &model.School{
-			ID: schoolID, Name: input.SchoolName, Grades: []string{}, IsActive: true,
-		}
-	}
+	ctx = tenancy.WithUserID(ctx, userID)
 	created, err := a.storage.CreateUser(ctx, model.User{
 		ID: userID, Name: input.Name, Email: input.Email, PasswordHash: string(hash),
-	}, school)
+	}, nil)
 	if err != nil {
 		return dto.AuthResult{}, translate(err, "user")
 	}
@@ -162,6 +153,13 @@ func (a *App) UpdatePassword(ctx context.Context, userID, currentSessionID strin
 		return translate(err, "user")
 	}
 	return a.storage.RevokeOtherSessions(ctx, user.ID, currentSessionID, a.now().UTC())
+}
+
+func (a *App) ClearData(ctx context.Context) error {
+	if tenancy.UserID(ctx) == "" {
+		return unauthorized("authentication required")
+	}
+	return a.storage.ClearUserData(ctx)
 }
 
 func (a *App) createSession(ctx context.Context, user model.User) (dto.AuthResult, error) {

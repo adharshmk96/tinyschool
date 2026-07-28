@@ -35,7 +35,8 @@ type sessionRecord struct {
 
 type schoolRecord struct {
 	ID       string              `gorm:"primaryKey"`
-	Name     string              `gorm:"not null;uniqueIndex;collate:nocase"`
+	UserID   string              `gorm:"not null;default:'';index;uniqueIndex:idx_schools_user_name,priority:1"`
+	Name     string              `gorm:"not null;collate:nocase;uniqueIndex:idx_schools_user_name,priority:2"`
 	IsActive bool                `gorm:"not null"`
 	Grades   []schoolGradeRecord `gorm:"foreignKey:SchoolID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
 }
@@ -48,6 +49,7 @@ type schoolGradeRecord struct {
 
 type academicYearRecord struct {
 	ID           string                  `gorm:"primaryKey"`
+	UserID       string                  `gorm:"not null;default:'';index"`
 	SchoolID     string                  `gorm:"not null;index"`
 	School       schoolRecord            `gorm:"foreignKey:SchoolID;references:ID"`
 	Name         string                  `gorm:"not null"`
@@ -71,6 +73,7 @@ type academicSegmentRecord struct {
 
 type studentRecord struct {
 	ID                                         string       `gorm:"primaryKey"`
+	UserID                                     string       `gorm:"not null;default:'';index"`
 	SchoolID                                   string       `gorm:"not null;index"`
 	School                                     schoolRecord `gorm:"foreignKey:SchoolID;references:ID"`
 	FirstName, LastName, Email, Phone, Grade   string
@@ -80,6 +83,7 @@ type studentRecord struct {
 
 type classRecord struct {
 	ID                                string `gorm:"primaryKey"`
+	UserID                            string `gorm:"not null;default:'';index"`
 	SchoolID, AcademicYearID          string `gorm:"not null;index"`
 	Name, Subject, Grade, Description string
 	School                            schoolRecord       `gorm:"foreignKey:SchoolID;references:ID"`
@@ -101,6 +105,7 @@ type studentLogRecord struct {
 
 type assignmentRecord struct {
 	ID                       string `gorm:"primaryKey"`
+	UserID                   string `gorm:"not null;default:'';index"`
 	SchoolID, AcademicYearID string `gorm:"not null;index"`
 	Name, Type, DueDate      string
 	TotalScore               float64
@@ -120,6 +125,7 @@ type assignmentStudentRecord struct {
 
 type examRecord struct {
 	ID                                string `gorm:"primaryKey"`
+	UserID                            string `gorm:"not null;default:'';index"`
 	SchoolID, AcademicYearID, ClassID string `gorm:"not null;index"`
 	Name, Type, ExamDate              string
 	TotalScore                        float64

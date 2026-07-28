@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	"tinyschool-api/internal/storage"
+	"tinyschool-api/internal/tenancy"
 )
 
 type Store struct {
@@ -77,10 +78,55 @@ func (s *Store) AutoMigrate(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("auto migrate: %w", err)
 	}
+	// Older single-user databases did not store ownership. Assign their data to
+	// the first account once, before enforcing user-scoped access.
+	var firstUser userRecord
+	if err := s.db.WithContext(ctx).Order("id").First(&firstUser).Error; err == nil {
+		for _, table := range []string{"schools", "academic_years", "students", "classes", "assignments", "exams"} {
+			if err := s.db.WithContext(ctx).Table(table).Where("user_id = '' OR user_id IS NULL").Update("user_id", firstUser.ID).Error; err != nil {
+				return fmt.Errorf("backfill %s ownership: %w", table, err)
+			}
+		}
+	}
+	_ = s.db.WithContext(ctx).Exec("DROP INDEX IF EXISTS idx_schools_name").Error
 	if err := s.db.WithContext(ctx).Exec(
 		"CREATE UNIQUE INDEX IF NOT EXISTS idx_academic_year_current_school ON academic_years(school_id) WHERE is_current = 1",
 	).Error; err != nil {
 		return fmt.Errorf("create current academic year index: %w", err)
 	}
 	return nil
+}
+
+func userID(ctx context.Context) string { return tenancy.UserID(ctx) }
+
+func (s *Store) ClearUserData(ctx context.Context) error {
+	id := userID(ctx)
+	if id == "" {
+		return fmt.Errorf("clear user data: missing user identity")
+	}
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		steps := []struct {
+			query string
+			args  []any
+		}{
+			{"DELETE FROM assignment_students WHERE assignment_id IN (SELECT id FROM assignments WHERE user_id = ?)", []any{id}},
+			{"DELETE FROM exam_students WHERE exam_id IN (SELECT id FROM exams WHERE user_id = ?)", []any{id}},
+			{"DELETE FROM student_logs WHERE student_id IN (SELECT id FROM students WHERE user_id = ?)", []any{id}},
+			{"DELETE FROM class_students WHERE class_id IN (SELECT id FROM classes WHERE user_id = ?)", []any{id}},
+			{"DELETE FROM exams WHERE user_id = ?", []any{id}},
+			{"DELETE FROM assignments WHERE user_id = ?", []any{id}},
+			{"DELETE FROM classes WHERE user_id = ?", []any{id}},
+			{"DELETE FROM students WHERE user_id = ?", []any{id}},
+			{"DELETE FROM academic_segments WHERE academic_year_id IN (SELECT id FROM academic_years WHERE user_id = ?)", []any{id}},
+			{"DELETE FROM academic_years WHERE user_id = ?", []any{id}},
+			{"DELETE FROM school_grades WHERE school_id IN (SELECT id FROM schools WHERE user_id = ?)", []any{id}},
+			{"DELETE FROM schools WHERE user_id = ?", []any{id}},
+		}
+		for _, step := range steps {
+			if err := tx.Exec(step.query, step.args...).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }

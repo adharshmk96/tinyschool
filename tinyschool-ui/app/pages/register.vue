@@ -5,7 +5,6 @@ const pending = ref(false)
 const form = reactive({
   name: '',
   email: '',
-  school: '',
   password: '',
   confirmPassword: ''
 })
@@ -28,8 +27,7 @@ async function submit() {
     await postItem('/auth/register', {
       name: form.name.trim(),
       email: form.email.trim(),
-      password: form.password,
-      schoolName: form.school.trim()
+      password: form.password
     })
     useCookie('tiny-school-authenticated', {
       sameSite: 'lax',
@@ -63,7 +61,7 @@ useSeoMeta({ title: 'Create account' })
             Create your workspace
           </h1>
           <p class="mt-1 text-sm text-muted">
-            You can invite others and add more schools later.
+            Create your account, then set up your school and academic year.
           </p>
         </template>
         <form
@@ -93,17 +91,6 @@ useSeoMeta({ title: 'Create account' })
               />
             </UFormField>
           </div>
-          <UFormField
-            label="School name"
-            hint="Optional"
-          >
-            <UInput
-              v-model="form.school"
-              icon="i-lucide-school"
-              placeholder="Oakridge Learning Centre"
-              class="w-full"
-            />
-          </UFormField>
           <div class="grid gap-5 sm:grid-cols-2">
             <UFormField
               label="Password"

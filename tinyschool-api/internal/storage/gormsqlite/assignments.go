@@ -16,7 +16,7 @@ func assignmentPreloads(db *gorm.DB) *gorm.DB {
 }
 
 func (s *Store) ListAssignments(ctx context.Context, options storage.ListOptions) ([]model.Assignment, int64, error) {
-	query := s.db.WithContext(ctx).Model(&assignmentRecord{})
+	query := s.db.WithContext(ctx).Model(&assignmentRecord{}).Where("assignments.user_id = ?", userID(ctx))
 	if options.Search != "" {
 		p := contains(options.Search)
 		query = query.Where("LOWER(assignments.name) LIKE ? OR LOWER(assignments.type) LIKE ? OR EXISTS (SELECT 1 FROM classes c WHERE c.id = assignments.class_id AND LOWER(c.name) LIKE ?)", p, p, p)
@@ -40,12 +40,12 @@ func (s *Store) ListAssignments(ctx context.Context, options storage.ListOptions
 
 func (s *Store) Assignment(ctx context.Context, id string) (model.Assignment, error) {
 	var record assignmentRecord
-	err := assignmentPreloads(s.db.WithContext(ctx)).First(&record, "id = ?", id).Error
+	err := assignmentPreloads(s.db.WithContext(ctx)).First(&record, "id = ? AND user_id = ?", id, userID(ctx)).Error
 	return assignmentModel(record), storageError(err)
 }
 
-func assignmentRecordFrom(m model.Assignment) assignmentRecord {
-	return assignmentRecord{ID: m.ID, SchoolID: m.SchoolID, AcademicYearID: m.AcademicYearID, Name: m.Name, Type: m.Type, DueDate: m.DueDate, TotalScore: m.TotalScore, ClassID: m.ClassID}
+func assignmentRecordFrom(ownerID string, m model.Assignment) assignmentRecord {
+	return assignmentRecord{ID: m.ID, UserID: ownerID, SchoolID: m.SchoolID, AcademicYearID: m.AcademicYearID, Name: m.Name, Type: m.Type, DueDate: m.DueDate, TotalScore: m.TotalScore, ClassID: m.ClassID}
 }
 
 func assignmentRoster(tx *gorm.DB, assignment model.Assignment, studentIDs []string) error {
@@ -66,7 +66,7 @@ func assignmentRoster(tx *gorm.DB, assignment model.Assignment, studentIDs []str
 
 func (s *Store) CreateAssignment(ctx context.Context, assignment model.Assignment, studentIDs []string) (model.Assignment, error) {
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(&[]assignmentRecord{assignmentRecordFrom(assignment)}).Error; err != nil {
+		if err := tx.Create(&[]assignmentRecord{assignmentRecordFrom(userID(ctx), assignment)}).Error; err != nil {
 			return err
 		}
 		return assignmentRoster(tx, assignment, studentIDs)
@@ -76,7 +76,7 @@ func (s *Store) CreateAssignment(ctx context.Context, assignment model.Assignmen
 
 func (s *Store) UpdateAssignment(ctx context.Context, assignment model.Assignment, studentIDs *[]string) (model.Assignment, error) {
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		result := tx.Model(&assignmentRecord{}).Where("id = ?", assignment.ID).Updates(map[string]any{
+		result := tx.Model(&assignmentRecord{}).Where("id = ? AND user_id = ?", assignment.ID, userID(ctx)).Updates(map[string]any{
 			"school_id": assignment.SchoolID, "academic_year_id": assignment.AcademicYearID,
 			"name": assignment.Name, "type": assignment.Type, "due_date": assignment.DueDate,
 			"total_score": assignment.TotalScore, "class_id": assignment.ClassID,
@@ -103,7 +103,7 @@ func (s *Store) UpdateAssignment(ctx context.Context, assignment model.Assignmen
 }
 
 func (s *Store) DeleteAssignment(ctx context.Context, id string) error {
-	result := s.db.WithContext(ctx).Delete(&assignmentRecord{}, "id = ?", id)
+	result := s.db.WithContext(ctx).Delete(&assignmentRecord{}, "id = ? AND user_id = ?", id, userID(ctx))
 	if result.Error != nil {
 		return storageError(result.Error)
 	}
@@ -115,7 +115,7 @@ func (s *Store) DeleteAssignment(ctx context.Context, id string) error {
 
 func (s *Store) SetAssignmentScore(ctx context.Context, assignmentID, studentID string, score *float64, completedAt *time.Time) error {
 	result := s.db.WithContext(ctx).Model(&assignmentStudentRecord{}).
-		Where("assignment_id = ? AND student_id = ?", assignmentID, studentID).
+		Where("assignment_id = ? AND student_id = ? AND EXISTS (SELECT 1 FROM assignments WHERE assignments.id = assignment_students.assignment_id AND assignments.user_id = ?)", assignmentID, studentID, userID(ctx)).
 		Updates(map[string]any{"score": score, "completed_at": completedAt})
 	if result.Error != nil {
 		return storageError(result.Error)

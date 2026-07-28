@@ -115,6 +115,13 @@ func (a *App) classFromInput(ctx context.Context, id string, input dto.ClassRequ
 	case input.Grade == "":
 		return model.Class{}, nil, validation("grade is required")
 	}
+	school, err := a.storage.School(ctx, input.SchoolID)
+	if err != nil {
+		return model.Class{}, nil, translate(err, "school")
+	}
+	if !containsGrade(school.Grades, input.Grade) {
+		return model.Class{}, nil, validation("grade must belong to the selected school")
+	}
 	year, err := a.storage.AcademicYear(ctx, input.AcademicYearID)
 	if err != nil {
 		return model.Class{}, nil, translate(err, "academic year")
@@ -179,8 +186,12 @@ func (a *App) CreateStudent(ctx context.Context, input dto.StudentRequest) (dto.
 	if err != nil {
 		return dto.Student{}, err
 	}
-	if _, err := a.storage.School(ctx, item.SchoolID); err != nil {
+	school, err := a.storage.School(ctx, item.SchoolID)
+	if err != nil {
 		return dto.Student{}, translate(err, "school")
+	}
+	if !containsGrade(school.Grades, item.Grade) {
+		return dto.Student{}, validation("grade must belong to the selected school")
 	}
 	item.ID, err = a.newID("stu")
 	if err != nil {
@@ -230,14 +241,27 @@ func (a *App) UpdateStudent(ctx context.Context, id string, input dto.UpdateStud
 	if err != nil {
 		return dto.Student{}, err
 	}
-	if _, err := a.storage.School(ctx, item.SchoolID); err != nil {
+	school, err := a.storage.School(ctx, item.SchoolID)
+	if err != nil {
 		return dto.Student{}, translate(err, "school")
+	}
+	if !containsGrade(school.Grades, item.Grade) {
+		return dto.Student{}, validation("grade must belong to the selected school")
 	}
 	updated, err := a.storage.UpdateStudent(ctx, item)
 	if err != nil {
 		return dto.Student{}, translate(err, "student")
 	}
 	return studentDTO(updated, true), nil
+}
+
+func containsGrade(grades []string, grade string) bool {
+	for _, candidate := range grades {
+		if strings.EqualFold(strings.TrimSpace(candidate), strings.TrimSpace(grade)) {
+			return true
+		}
+	}
+	return false
 }
 
 func (a *App) DeleteStudent(ctx context.Context, id string) error {

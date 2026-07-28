@@ -16,7 +16,7 @@ func examPreloads(db *gorm.DB) *gorm.DB {
 }
 
 func (s *Store) ListExams(ctx context.Context, options storage.ListOptions) ([]model.Exam, int64, error) {
-	query := s.db.WithContext(ctx).Model(&examRecord{})
+	query := s.db.WithContext(ctx).Model(&examRecord{}).Where("exams.user_id = ?", userID(ctx))
 	if options.Search != "" {
 		p := contains(options.Search)
 		query = query.Where("LOWER(exams.name) LIKE ? OR LOWER(exams.type) LIKE ? OR EXISTS (SELECT 1 FROM classes c WHERE c.id = exams.class_id AND LOWER(c.name) LIKE ?)", p, p, p)
@@ -41,12 +41,12 @@ func (s *Store) ListExams(ctx context.Context, options storage.ListOptions) ([]m
 
 func (s *Store) Exam(ctx context.Context, id string) (model.Exam, error) {
 	var record examRecord
-	err := examPreloads(s.db.WithContext(ctx)).First(&record, "id = ?", id).Error
+	err := examPreloads(s.db.WithContext(ctx)).First(&record, "id = ? AND user_id = ?", id, userID(ctx)).Error
 	return examModel(record), storageError(err)
 }
 
-func examRecordFrom(m model.Exam) examRecord {
-	return examRecord{ID: m.ID, SchoolID: m.SchoolID, AcademicYearID: m.AcademicYearID, ClassID: m.ClassID, Name: m.Name, Type: m.Type, ExamDate: m.ExamDate, TotalScore: m.TotalScore}
+func examRecordFrom(ownerID string, m model.Exam) examRecord {
+	return examRecord{ID: m.ID, UserID: ownerID, SchoolID: m.SchoolID, AcademicYearID: m.AcademicYearID, ClassID: m.ClassID, Name: m.Name, Type: m.Type, ExamDate: m.ExamDate, TotalScore: m.TotalScore}
 }
 
 func replaceExamRoster(tx *gorm.DB, examID, classID string) error {
@@ -68,7 +68,7 @@ func replaceExamRoster(tx *gorm.DB, examID, classID string) error {
 
 func (s *Store) CreateExam(ctx context.Context, exam model.Exam) (model.Exam, error) {
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(&[]examRecord{examRecordFrom(exam)}).Error; err != nil {
+		if err := tx.Create(&[]examRecord{examRecordFrom(userID(ctx), exam)}).Error; err != nil {
 			return err
 		}
 		return replaceExamRoster(tx, exam.ID, exam.ClassID)
@@ -79,7 +79,7 @@ func (s *Store) CreateExam(ctx context.Context, exam model.Exam) (model.Exam, er
 func (s *Store) UpdateExam(ctx context.Context, exam model.Exam) (model.Exam, error) {
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var old examRecord
-		if err := tx.First(&old, "id = ?", exam.ID).Error; err != nil {
+		if err := tx.First(&old, "id = ? AND user_id = ?", exam.ID, userID(ctx)).Error; err != nil {
 			return err
 		}
 		if err := tx.Model(&old).Updates(map[string]any{
@@ -97,7 +97,7 @@ func (s *Store) UpdateExam(ctx context.Context, exam model.Exam) (model.Exam, er
 }
 
 func (s *Store) DeleteExam(ctx context.Context, id string) error {
-	result := s.db.WithContext(ctx).Delete(&examRecord{}, "id = ?", id)
+	result := s.db.WithContext(ctx).Delete(&examRecord{}, "id = ? AND user_id = ?", id, userID(ctx))
 	if result.Error != nil {
 		return storageError(result.Error)
 	}
@@ -109,7 +109,7 @@ func (s *Store) DeleteExam(ctx context.Context, id string) error {
 
 func (s *Store) SetExamScore(ctx context.Context, examID, studentID string, score *float64, markedAt *time.Time) error {
 	result := s.db.WithContext(ctx).Model(&examStudentRecord{}).
-		Where("exam_id = ? AND student_id = ?", examID, studentID).
+		Where("exam_id = ? AND student_id = ? AND EXISTS (SELECT 1 FROM exams WHERE exams.id = exam_students.exam_id AND exams.user_id = ?)", examID, studentID, userID(ctx)).
 		Updates(map[string]any{"score": score, "marked_at": markedAt})
 	if result.Error != nil {
 		return storageError(result.Error)

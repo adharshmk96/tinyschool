@@ -3,7 +3,8 @@ const route = useRoute()
 const links = [
   { label: 'Account', description: 'Profile and password', icon: 'i-lucide-user-round', to: '/dashboard/settings/account' },
   { label: 'My schools', description: 'Schools and grades', icon: 'i-lucide-school', to: '/dashboard/settings/schools' },
-  { label: 'Academic years', description: 'Terms and vacations', icon: 'i-lucide-calendar-range', to: '/dashboard/settings/academic-years' }
+  { label: 'Academic years', description: 'Terms and vacations', icon: 'i-lucide-calendar-range', to: '/dashboard/settings/academic-years' },
+  { label: 'Data', description: 'Clear workspace data', icon: 'i-lucide-database', to: '/dashboard/settings/data' }
 ]
 </script>
 

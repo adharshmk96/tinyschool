@@ -34,7 +34,7 @@ func (s *Store) CreateUser(ctx context.Context, user model.User, school *model.S
 			return err
 		}
 		if school != nil {
-			return createSchool(tx, *school)
+			return createSchool(tx, user.ID, *school)
 		}
 		return nil
 	})
@@ -91,7 +91,7 @@ func (s *Store) Overview(ctx context.Context) (model.Overview, error) {
 	for table, destination := range map[string]*int64{
 		"students": new(int64), "classes": new(int64), "assignments": new(int64), "exams": new(int64),
 	} {
-		if err := s.db.WithContext(ctx).Table(table).Count(destination).Error; err != nil {
+		if err := s.db.WithContext(ctx).Table(table).Where("user_id = ?", userID(ctx)).Count(destination).Error; err != nil {
 			return model.Overview{}, fmt.Errorf("count %s: %w", table, err)
 		}
 		switch table {
@@ -106,12 +106,12 @@ func (s *Store) Overview(ctx context.Context) (model.Overview, error) {
 		}
 	}
 	var school schoolRecord
-	if err := s.db.WithContext(ctx).Where("is_active = ?", true).Order("id").First(&school).Error; err != nil {
+	if err := s.db.WithContext(ctx).Where("user_id = ? AND is_active = ?", userID(ctx), true).Order("id").First(&school).Error; err != nil {
 		return model.Overview{}, storageError(err)
 	}
 	overview.School = model.Reference{ID: school.ID, Name: school.Name}
 	var year academicYearRecord
-	if err := s.db.WithContext(ctx).Where("school_id = ? AND is_current = ?", school.ID, true).First(&year).Error; err != nil {
+	if err := s.db.WithContext(ctx).Where("user_id = ? AND school_id = ? AND is_current = ?", userID(ctx), school.ID, true).First(&year).Error; err != nil {
 		return model.Overview{}, storageError(err)
 	}
 	overview.AcademicYear = model.Reference{ID: year.ID, Name: year.Name}

@@ -10,7 +10,7 @@ import (
 )
 
 func (s *Store) ListStudents(ctx context.Context, options storage.ListOptions) ([]model.Student, int64, error) {
-	query := s.db.WithContext(ctx).Model(&studentRecord{})
+	query := s.db.WithContext(ctx).Model(&studentRecord{}).Where("students.user_id = ?", userID(ctx))
 	if options.Search != "" {
 		p := contains(options.Search)
 		query = query.Where("LOWER(first_name || ' ' || last_name) LIKE ? OR LOWER(email) LIKE ? OR LOWER(phone) LIKE ? OR LOWER(grade) LIKE ? OR LOWER(guardian_name) LIKE ?", p, p, p, p, p)
@@ -35,7 +35,7 @@ func preloadStudent(db *gorm.DB) *gorm.DB {
 
 func (s *Store) Student(ctx context.Context, id string) (model.Student, error) {
 	var record studentRecord
-	if err := s.db.WithContext(ctx).First(&record, "id = ?", id).Error; err != nil {
+	if err := s.db.WithContext(ctx).First(&record, "id = ? AND user_id = ?", id, userID(ctx)).Error; err != nil {
 		return model.Student{}, storageError(err)
 	}
 	result := studentModel(record)
@@ -49,7 +49,7 @@ func (s *Store) Student(ctx context.Context, id string) (model.Student, error) {
 	var classes []classRecord
 	if err := s.db.WithContext(ctx).
 		Joins("JOIN class_students ON class_students.class_id = classes.id").
-		Where("class_students.student_id = ?", id).
+		Where("classes.user_id = ? AND class_students.student_id = ?", userID(ctx), id).
 		Order("classes.name").
 		Find(&classes).Error; err != nil {
 		return model.Student{}, err
@@ -63,7 +63,7 @@ func (s *Store) Student(ctx context.Context, id string) (model.Student, error) {
 	}
 	for _, row := range assignments {
 		var a assignmentRecord
-		if err := s.db.WithContext(ctx).First(&a, "id = ?", row.AssignmentID).Error; err != nil {
+		if err := s.db.WithContext(ctx).First(&a, "id = ? AND user_id = ?", row.AssignmentID, userID(ctx)).Error; err != nil {
 			return model.Student{}, err
 		}
 		result.Assignments = append(result.Assignments, model.Result{ID: a.ID, Name: a.Name, Kind: "assignment", DueAt: a.DueDate, Score: row.Score, TotalScore: a.TotalScore, CompletedAt: row.CompletedAt})
@@ -74,7 +74,7 @@ func (s *Store) Student(ctx context.Context, id string) (model.Student, error) {
 	}
 	for _, row := range exams {
 		var exam examRecord
-		if err := s.db.WithContext(ctx).First(&exam, "id = ?", row.ExamID).Error; err != nil {
+		if err := s.db.WithContext(ctx).First(&exam, "id = ? AND user_id = ?", row.ExamID, userID(ctx)).Error; err != nil {
 			return model.Student{}, err
 		}
 		result.Exams = append(result.Exams, model.Result{ID: exam.ID, Name: exam.Name, Kind: "exam", DueAt: exam.ExamDate, Score: row.Score, TotalScore: exam.TotalScore, CompletedAt: row.MarkedAt})
@@ -82,17 +82,17 @@ func (s *Store) Student(ctx context.Context, id string) (model.Student, error) {
 	return result, nil
 }
 
-func studentRecordFrom(m model.Student) studentRecord {
-	return studentRecord{ID: m.ID, SchoolID: m.SchoolID, FirstName: m.FirstName, LastName: m.LastName, Email: m.Email, Phone: m.Phone, Grade: m.Grade, GuardianName: m.GuardianName, GuardianEmail: m.GuardianEmail, GuardianPhone: m.GuardianPhone, ResidentAddress: m.ResidentAddress, PermanentAddress: m.PermanentAddress}
+func studentRecordFrom(ownerID string, m model.Student) studentRecord {
+	return studentRecord{ID: m.ID, UserID: ownerID, SchoolID: m.SchoolID, FirstName: m.FirstName, LastName: m.LastName, Email: m.Email, Phone: m.Phone, Grade: m.Grade, GuardianName: m.GuardianName, GuardianEmail: m.GuardianEmail, GuardianPhone: m.GuardianPhone, ResidentAddress: m.ResidentAddress, PermanentAddress: m.PermanentAddress}
 }
 
 func (s *Store) CreateStudent(ctx context.Context, student model.Student) (model.Student, error) {
-	err := s.db.WithContext(ctx).Create(&[]studentRecord{studentRecordFrom(student)}).Error
+	err := s.db.WithContext(ctx).Create(&[]studentRecord{studentRecordFrom(userID(ctx), student)}).Error
 	return student, storageError(err)
 }
 
 func (s *Store) UpdateStudent(ctx context.Context, student model.Student) (model.Student, error) {
-	result := s.db.WithContext(ctx).Model(&studentRecord{}).Where("id = ?", student.ID).Updates(map[string]any{
+	result := s.db.WithContext(ctx).Model(&studentRecord{}).Where("id = ? AND user_id = ?", student.ID, userID(ctx)).Updates(map[string]any{
 		"school_id": student.SchoolID, "first_name": student.FirstName, "last_name": student.LastName,
 		"email": student.Email, "phone": student.Phone, "grade": student.Grade,
 		"guardian_name": student.GuardianName, "guardian_email": student.GuardianEmail,
@@ -109,7 +109,7 @@ func (s *Store) UpdateStudent(ctx context.Context, student model.Student) (model
 }
 
 func (s *Store) DeleteStudent(ctx context.Context, id string) error {
-	result := s.db.WithContext(ctx).Delete(&studentRecord{}, "id = ?", id)
+	result := s.db.WithContext(ctx).Delete(&studentRecord{}, "id = ? AND user_id = ?", id, userID(ctx))
 	if result.Error != nil {
 		return storageError(result.Error)
 	}
@@ -120,12 +120,21 @@ func (s *Store) DeleteStudent(ctx context.Context, id string) error {
 }
 
 func (s *Store) CreateStudentLog(ctx context.Context, log model.StudentLog) (model.StudentLog, error) {
+	var count int64
+	if err := s.db.WithContext(ctx).Model(&studentRecord{}).Where("id = ? AND user_id = ?", log.StudentID, userID(ctx)).Count(&count).Error; err != nil {
+		return model.StudentLog{}, err
+	}
+	if count == 0 {
+		return model.StudentLog{}, storage.ErrNotFound
+	}
 	record := studentLogRecord{ID: log.ID, StudentID: log.StudentID, Kind: log.Kind, Type: log.Type, Note: log.Note, CreatedAt: log.CreatedAt}
 	return log, storageError(s.db.WithContext(ctx).Create(&record).Error)
 }
 
 func (s *Store) DeleteStudentLog(ctx context.Context, studentID, logID, kind string) error {
-	result := s.db.WithContext(ctx).Where("id = ? AND student_id = ? AND kind = ?", logID, studentID, kind).Delete(&studentLogRecord{})
+	result := s.db.WithContext(ctx).
+		Where("id = ? AND student_id = ? AND kind = ? AND EXISTS (SELECT 1 FROM students WHERE students.id = student_logs.student_id AND students.user_id = ?)", logID, studentID, kind, userID(ctx)).
+		Delete(&studentLogRecord{})
 	if result.Error != nil {
 		return storageError(result.Error)
 	}

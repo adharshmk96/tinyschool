@@ -15,12 +15,20 @@ type fakeStorage struct {
 	storage.Storage
 	user        model.User
 	session     model.Session
+	school      model.School
 	year        model.AcademicYear
 	assignment  model.Assignment
 	student     model.Student
 	createdYear model.AcademicYear
 	scoreWasSet bool
 	deleted     bool
+}
+
+func (f *fakeStorage) School(_ context.Context, id string) (model.School, error) {
+	if f.school.ID != id {
+		return model.School{}, storage.ErrNotFound
+	}
+	return f.school, nil
 }
 
 func (f *fakeStorage) CreateAcademicYear(_ context.Context, value model.AcademicYear) (model.AcademicYear, error) {
@@ -89,7 +97,7 @@ func (f *fakeStorage) UserByID(_ context.Context, id string) (model.User, error)
 }
 
 func TestCreateAcademicYearCalculatesConsecutiveDates(t *testing.T) {
-	store := &fakeStorage{}
+	store := &fakeStorage{school: model.School{ID: "sch_1", Grades: []string{"Grade 1"}}}
 	app := New(store, WithIDGenerator(func(prefix string) (string, error) {
 		return prefix + "_test", nil
 	}))

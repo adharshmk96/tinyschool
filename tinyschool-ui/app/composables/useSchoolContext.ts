@@ -12,11 +12,21 @@ export function useSchoolContext() {
   const selectedSchool = computed(() =>
     schools.value.find(item => item.id === selectedSchoolId.value) || schools.value[0]
   )
-  const selectedYear = computed(() =>
-    academicYears.value.find(item => item.id === selectedYearId.value)
-    || academicYears.value.find(item => item.isCurrent)
-    || academicYears.value[0]
+  const availableAcademicYears = computed(() =>
+    academicYears.value.filter(item => item.schoolId === selectedSchool.value?.id)
   )
+  const selectedYear = computed(() =>
+    availableAcademicYears.value.find(item => item.id === selectedYearId.value)
+    || availableAcademicYears.value.find(item => item.isCurrent)
+    || availableAcademicYears.value[0]
+  )
+
+  watch(selectedSchoolId, () => {
+    if (!availableAcademicYears.value.some(item => item.id === selectedYearId.value)) {
+      selectedYearId.value = availableAcademicYears.value.find(item => item.isCurrent)?.id
+        || availableAcademicYears.value[0]?.id
+    }
+  })
 
   async function load() {
     if (loading.value || loaded.value) return
@@ -28,8 +38,11 @@ export function useSchoolContext() {
       ])
       schools.value = schoolResponse.data || []
       academicYears.value = yearResponse.data || []
-      selectedSchoolId.value ||= schools.value[0]?.id
-      selectedYearId.value ||= academicYears.value.find(item => item.isCurrent)?.id || academicYears.value[0]?.id
+      if (!schools.value.some(item => item.id === selectedSchoolId.value))
+        selectedSchoolId.value = schools.value[0]?.id
+      const yearsForSchool = academicYears.value.filter(item => item.schoolId === selectedSchoolId.value)
+      if (!yearsForSchool.some(item => item.id === selectedYearId.value))
+        selectedYearId.value = yearsForSchool.find(item => item.isCurrent)?.id || yearsForSchool[0]?.id
       loaded.value = true
     } finally {
       loading.value = false
@@ -39,6 +52,7 @@ export function useSchoolContext() {
   return {
     schools,
     academicYears,
+    availableAcademicYears,
     selectedSchoolId,
     selectedYearId,
     selectedSchool,

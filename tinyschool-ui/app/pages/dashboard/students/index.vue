@@ -1,5 +1,18 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'dashboard' })
+const { selectedSchool } = useSchoolContext()
+const fields = computed(() => [
+  { key: 'firstName', label: 'First name' },
+  { key: 'lastName', label: 'Last name' },
+  { key: 'email', label: 'Email', type: 'email' },
+  { key: 'phone', label: 'Phone', type: 'tel' },
+  { key: 'grade', label: 'Grade', options: selectedSchool.value?.grades || [] },
+  { key: 'guardianName', label: 'Guardian name' },
+  { key: 'guardianEmail', label: 'Guardian email', type: 'email' },
+  { key: 'guardianPhone', label: 'Guardian phone', type: 'tel' },
+  { key: 'residentAddress', label: 'Resident address', type: 'textarea' },
+  { key: 'permanentAddress', label: 'Permanent address', type: 'textarea' }
+])
 </script>
 
 <template>
@@ -21,17 +34,6 @@ definePageMeta({ layout: 'dashboard' })
       { key: 'grade', label: 'Grade' },
       { key: 'guardian.name', label: 'Guardian' }
     ]"
-    :fields="[
-      { key: 'firstName', label: 'First name' },
-      { key: 'lastName', label: 'Last name' },
-      { key: 'email', label: 'Email', type: 'email' },
-      { key: 'phone', label: 'Phone', type: 'tel' },
-      { key: 'grade', label: 'Grade', options: ['Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10'] },
-      { key: 'guardianName', label: 'Guardian name' },
-      { key: 'guardianEmail', label: 'Guardian email', type: 'email' },
-      { key: 'guardianPhone', label: 'Guardian phone', type: 'tel' },
-      { key: 'residentAddress', label: 'Resident address', type: 'textarea' },
-      { key: 'permanentAddress', label: 'Permanent address', type: 'textarea' }
-    ]"
+    :fields="fields"
   />
 </template>

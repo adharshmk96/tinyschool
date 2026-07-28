@@ -125,6 +125,9 @@ func (a *App) CreateAcademicYear(ctx context.Context, input dto.AcademicYearRequ
 	if err != nil {
 		return dto.AcademicYear{}, err
 	}
+	if _, err := a.storage.School(ctx, item.SchoolID); err != nil {
+		return dto.AcademicYear{}, translate(err, "school")
+	}
 	item.ID, err = a.newID("ay")
 	if err != nil {
 		return dto.AcademicYear{}, err
@@ -149,6 +152,9 @@ func (a *App) UpdateAcademicYear(ctx context.Context, id string, input dto.Acade
 	item, err := a.academicYearFromInput(strings.TrimSpace(id), input)
 	if err != nil {
 		return dto.AcademicYear{}, err
+	}
+	if _, err := a.storage.School(ctx, item.SchoolID); err != nil {
+		return dto.AcademicYear{}, translate(err, "school")
 	}
 	for index := range item.Segments {
 		item.Segments[index].ID, err = a.newID("seg")

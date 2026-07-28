@@ -31,10 +31,9 @@ type UpdateUserRequest struct {
 }
 
 type RegisterRequest struct {
-	Name       string `json:"name"`
-	Email      string `json:"email"`
-	Password   string `json:"password"`
-	SchoolName string `json:"schoolName"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
 type LoginRequest struct {

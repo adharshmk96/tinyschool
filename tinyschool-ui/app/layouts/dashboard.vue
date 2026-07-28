@@ -7,7 +7,7 @@ const mobileOpen = ref(false)
 const logoutPending = ref(false)
 const currentUser = useState<User | null>('current-user', () => null)
 const { getItem, post } = useApi()
-const { schools, academicYears, selectedSchoolId, selectedYearId, selectedSchool, selectedYear, loading, load } = useSchoolContext()
+const { schools, availableAcademicYears, selectedSchoolId, selectedYearId, selectedSchool, selectedYear, loading, load } = useSchoolContext()
 
 const navigation = [
   { label: 'Overview', to: '/dashboard', icon: 'i-lucide-layout-dashboard' },
@@ -24,6 +24,17 @@ const userItems = [
 
 function isActive(path: string) {
   return path === '/dashboard' ? route.path === path : route.path.startsWith(path)
+}
+
+async function redirectToOnboarding() {
+  const schoolSetupPath = '/dashboard/settings/schools'
+  const yearSetupPath = '/dashboard/settings/academic-years/create'
+  if (!schools.value.length && route.path !== schoolSetupPath) {
+    await navigateTo(`${schoolSetupPath}?create=1&onboarding=1`)
+    return
+  }
+  if (schools.value.length && !availableAcademicYears.value.length && route.path !== yearSetupPath)
+    await navigateTo(`${yearSetupPath}?onboarding=1`)
 }
 
 async function logout() {
@@ -56,6 +67,7 @@ onMounted(async () => {
       load()
     ])
     currentUser.value = user.data
+    await redirectToOnboarding()
   } catch {
     toast.add({
       title: 'Could not load school context',
@@ -63,6 +75,11 @@ onMounted(async () => {
       color: 'error'
     })
   }
+})
+
+watch([schools, availableAcademicYears], async () => {
+  if (useState('school-context-loaded').value)
+    await redirectToOnboarding()
 })
 </script>
 
@@ -80,6 +97,7 @@ onMounted(async () => {
 
       <div class="space-y-3 border-b border-default p-4">
         <USelect
+          v-if="schools.length"
           v-model="selectedSchoolId"
           aria-label="Select school"
           value-key="id"
@@ -90,16 +108,35 @@ onMounted(async () => {
           class="w-full"
           placeholder="Select a school"
         />
+        <UButton
+          v-else
+          to="/dashboard/settings/schools"
+          icon="i-lucide-plus"
+          label="Create school"
+          color="neutral"
+          variant="outline"
+          class="w-full justify-start"
+        />
         <USelect
+          v-if="availableAcademicYears.length"
           v-model="selectedYearId"
           aria-label="Select academic year"
           value-key="id"
           label-key="name"
-          :items="academicYears"
+          :items="availableAcademicYears"
           :loading="loading"
           icon="i-lucide-calendar-range"
           class="w-full"
           placeholder="Select a year"
+        />
+        <UButton
+          v-else
+          to="/dashboard/settings/academic-years/create"
+          icon="i-lucide-plus"
+          label="Create academic year"
+          color="neutral"
+          variant="outline"
+          class="w-full justify-start"
         />
       </div>
 
@@ -179,6 +216,7 @@ onMounted(async () => {
         <div class="space-y-3">
           <AppLogo />
           <USelect
+            v-if="schools.length"
             v-model="selectedSchoolId"
             value-key="id"
             label-key="name"
@@ -187,14 +225,33 @@ onMounted(async () => {
             class="w-full"
             placeholder="Select a school"
           />
+          <UButton
+            v-else
+            to="/dashboard/settings/schools"
+            icon="i-lucide-plus"
+            label="Create school"
+            color="neutral"
+            variant="outline"
+            class="w-full justify-start"
+          />
           <USelect
+            v-if="availableAcademicYears.length"
             v-model="selectedYearId"
             value-key="id"
             label-key="name"
-            :items="academicYears"
+            :items="availableAcademicYears"
             icon="i-lucide-calendar-range"
             class="w-full"
             placeholder="Select a year"
+          />
+          <UButton
+            v-else
+            to="/dashboard/settings/academic-years/create"
+            icon="i-lucide-plus"
+            label="Create academic year"
+            color="neutral"
+            variant="outline"
+            class="w-full justify-start"
           />
           <nav class="space-y-1 pt-3">
             <UButton
