@@ -96,7 +96,7 @@ func assignmentDTO(item model.Assignment, detail bool) dto.Assignment {
 	result.Assignees = make([]dto.AssignmentAssignee, len(item.Students))
 	for index, assignee := range item.Students {
 		result.Assignees[index] = dto.AssignmentAssignee{
-			ID: assignee.Student.ID, Name: assignee.Student.FullName(), Grade: assignee.Student.Grade,
+			ID: assignee.Student.ID, Name: assignee.Student.FullName(), Grade: assignee.Student.GradeFor(item.AcademicYearID),
 			Score: assignee.Score,
 		}
 		if assignee.CompletedAt != nil {
@@ -145,7 +145,7 @@ func examDTO(item model.Exam, detail bool) dto.Exam {
 	result.Students = make([]dto.ExamStudent, len(item.Students))
 	for index, student := range item.Students {
 		result.Students[index] = dto.ExamStudent{
-			ID: student.Student.ID, Name: student.Student.FullName(), Grade: student.Student.Grade,
+			ID: student.Student.ID, Name: student.Student.FullName(), Grade: student.Student.GradeFor(item.AcademicYearID),
 			Score: student.Score,
 		}
 		if student.MarkedAt != nil {

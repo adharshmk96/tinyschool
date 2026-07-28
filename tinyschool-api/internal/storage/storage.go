@@ -15,6 +15,7 @@ var (
 
 type ListOptions struct {
 	Search, Sort, Order string
+	AcademicYearID      string
 	Page, PageSize      int
 }
 

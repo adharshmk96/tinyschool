@@ -1,11 +1,12 @@
 package dto
 
 type ListOptions struct {
-	Search   string
-	Sort     string
-	Order    string
-	Page     int
-	PageSize int
+	Search         string
+	AcademicYearID string
+	Sort           string
+	Order          string
+	Page           int
+	PageSize       int
 }
 
 type Page[T any] struct {
@@ -161,28 +162,41 @@ type Guardian struct {
 	Phone string `json:"phone"`
 }
 
+// StudentGradeInput links one academic year to the grade the student sits in.
+type StudentGradeInput struct {
+	AcademicYearID string `json:"academicYearId"`
+	Grade          string `json:"grade"`
+}
+
+type StudentGrade struct {
+	AcademicYearID   string `json:"academicYearId"`
+	AcademicYearName string `json:"academicYearName"`
+	Grade            string `json:"grade"`
+	IsCurrent        bool   `json:"isCurrent"`
+}
+
 type StudentRequest struct {
-	SchoolID         string   `json:"schoolId"`
-	FirstName        string   `json:"firstName"`
-	LastName         string   `json:"lastName"`
-	Email            string   `json:"email"`
-	Phone            string   `json:"phone"`
-	Grade            string   `json:"grade"`
-	Guardian         Guardian `json:"guardian"`
-	ResidentAddress  string   `json:"residentAddress"`
-	PermanentAddress string   `json:"permanentAddress"`
+	SchoolID         string              `json:"schoolId"`
+	FirstName        string              `json:"firstName"`
+	LastName         string              `json:"lastName"`
+	Email            string              `json:"email"`
+	Phone            string              `json:"phone"`
+	Grades           []StudentGradeInput `json:"grades"`
+	Guardian         Guardian            `json:"guardian"`
+	ResidentAddress  string              `json:"residentAddress"`
+	PermanentAddress string              `json:"permanentAddress"`
 }
 
 type UpdateStudentRequest struct {
-	SchoolID         *string   `json:"schoolId"`
-	FirstName        *string   `json:"firstName"`
-	LastName         *string   `json:"lastName"`
-	Email            *string   `json:"email"`
-	Phone            *string   `json:"phone"`
-	Grade            *string   `json:"grade"`
-	Guardian         *Guardian `json:"guardian"`
-	ResidentAddress  *string   `json:"residentAddress"`
-	PermanentAddress *string   `json:"permanentAddress"`
+	SchoolID         *string              `json:"schoolId"`
+	FirstName        *string              `json:"firstName"`
+	LastName         *string              `json:"lastName"`
+	Email            *string              `json:"email"`
+	Phone            *string              `json:"phone"`
+	Grades           *[]StudentGradeInput `json:"grades"`
+	Guardian         *Guardian            `json:"guardian"`
+	ResidentAddress  *string              `json:"residentAddress"`
+	PermanentAddress *string              `json:"permanentAddress"`
 }
 
 type StudentLog struct {
@@ -211,6 +225,7 @@ type Student struct {
 	Email            string          `json:"email"`
 	Phone            string          `json:"phone"`
 	Grade            string          `json:"grade"`
+	Grades           []StudentGrade  `json:"grades"`
 	Guardian         Guardian        `json:"guardian"`
 	ResidentAddress  string          `json:"residentAddress"`
 	PermanentAddress string          `json:"permanentAddress"`

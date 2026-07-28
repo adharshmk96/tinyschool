@@ -172,7 +172,8 @@ func listOptions(input dto.ListOptions, allowed map[string]bool, defaultSort str
 	}
 	return storage.ListOptions{
 		Search: input.Search, Sort: input.Sort, Order: input.Order,
-		Page: input.Page, PageSize: input.PageSize,
+		AcademicYearID: strings.TrimSpace(input.AcademicYearID),
+		Page:           input.Page, PageSize: input.PageSize,
 	}, nil
 }
 

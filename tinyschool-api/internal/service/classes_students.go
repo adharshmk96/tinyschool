@@ -182,16 +182,9 @@ func (a *App) GetStudent(ctx context.Context, id string) (dto.Student, error) {
 }
 
 func (a *App) CreateStudent(ctx context.Context, input dto.StudentRequest) (dto.Student, error) {
-	item, err := a.studentFromInput("", input)
+	item, err := a.studentFromInput(ctx, "", input)
 	if err != nil {
 		return dto.Student{}, err
-	}
-	school, err := a.storage.School(ctx, item.SchoolID)
-	if err != nil {
-		return dto.Student{}, translate(err, "school")
-	}
-	if !containsGrade(school.Grades, item.Grade) {
-		return dto.Student{}, validation("grade must belong to the selected school")
 	}
 	item.ID, err = a.newID("stu")
 	if err != nil {
@@ -225,8 +218,8 @@ func (a *App) UpdateStudent(ctx context.Context, id string, input dto.UpdateStud
 	if input.Phone != nil {
 		merged.Phone = *input.Phone
 	}
-	if input.Grade != nil {
-		merged.Grade = *input.Grade
+	if input.Grades != nil {
+		merged.Grades = *input.Grades
 	}
 	if input.Guardian != nil {
 		merged.Guardian = *input.Guardian
@@ -237,16 +230,9 @@ func (a *App) UpdateStudent(ctx context.Context, id string, input dto.UpdateStud
 	if input.PermanentAddress != nil {
 		merged.PermanentAddress = *input.PermanentAddress
 	}
-	item, err := a.studentFromInput(current.ID, merged)
+	item, err := a.studentFromInput(ctx, current.ID, merged)
 	if err != nil {
 		return dto.Student{}, err
-	}
-	school, err := a.storage.School(ctx, item.SchoolID)
-	if err != nil {
-		return dto.Student{}, translate(err, "school")
-	}
-	if !containsGrade(school.Grades, item.Grade) {
-		return dto.Student{}, validation("grade must belong to the selected school")
 	}
 	updated, err := a.storage.UpdateStudent(ctx, item)
 	if err != nil {
@@ -372,13 +358,12 @@ func (a *App) createLog(ctx context.Context, studentID, kind, logType, note, pre
 	return studentLogDTO(created), nil
 }
 
-func (a *App) studentFromInput(id string, input dto.StudentRequest) (model.Student, error) {
+func (a *App) studentFromInput(ctx context.Context, id string, input dto.StudentRequest) (model.Student, error) {
 	input.SchoolID = strings.TrimSpace(input.SchoolID)
 	input.FirstName = strings.TrimSpace(input.FirstName)
 	input.LastName = strings.TrimSpace(input.LastName)
 	input.Email = strings.ToLower(strings.TrimSpace(input.Email))
 	input.Phone = strings.TrimSpace(input.Phone)
-	input.Grade = strings.TrimSpace(input.Grade)
 	input.Guardian.Name = strings.TrimSpace(input.Guardian.Name)
 	input.Guardian.Email = strings.ToLower(strings.TrimSpace(input.Guardian.Email))
 	input.Guardian.Phone = strings.TrimSpace(input.Guardian.Phone)
@@ -391,8 +376,12 @@ func (a *App) studentFromInput(id string, input dto.StudentRequest) (model.Stude
 		return model.Student{}, validation("firstName is required")
 	case input.LastName == "":
 		return model.Student{}, validation("lastName is required")
-	case input.Grade == "":
-		return model.Student{}, validation("grade is required")
+	case len(input.Grades) == 0:
+		return model.Student{}, validation("grades must contain at least one academic year")
+	}
+	grades, err := a.studentGrades(ctx, input.SchoolID, input.Grades)
+	if err != nil {
+		return model.Student{}, err
 	}
 	if input.Email != "" {
 		if err := validEmail(input.Email); err != nil {
@@ -406,16 +395,59 @@ func (a *App) studentFromInput(id string, input dto.StudentRequest) (model.Stude
 	}
 	return model.Student{
 		ID: id, SchoolID: input.SchoolID, FirstName: input.FirstName, LastName: input.LastName,
-		Email: input.Email, Phone: input.Phone, Grade: input.Grade,
+		Email: input.Email, Phone: input.Phone, Grades: grades,
 		GuardianName: input.Guardian.Name, GuardianEmail: input.Guardian.Email, GuardianPhone: input.Guardian.Phone,
 		ResidentAddress: input.ResidentAddress, PermanentAddress: input.PermanentAddress,
 	}, nil
 }
 
+// studentGrades validates one grade per academic year, where every year belongs
+// to the student's school and every grade is offered by that school.
+func (a *App) studentGrades(ctx context.Context, schoolID string, input []dto.StudentGradeInput) ([]model.StudentGrade, error) {
+	school, err := a.storage.School(ctx, schoolID)
+	if err != nil {
+		return nil, translate(err, "school")
+	}
+	result := make([]model.StudentGrade, 0, len(input))
+	seen := make(map[string]struct{}, len(input))
+	for _, entry := range input {
+		yearID := strings.TrimSpace(entry.AcademicYearID)
+		grade := strings.TrimSpace(entry.Grade)
+		switch {
+		case yearID == "":
+			return nil, validation("grades.academicYearId is required")
+		case grade == "":
+			return nil, validation("grades.grade is required")
+		}
+		if _, exists := seen[yearID]; exists {
+			return nil, validation("grades must contain each academic year only once")
+		}
+		seen[yearID] = struct{}{}
+		year, findErr := a.storage.AcademicYear(ctx, yearID)
+		if findErr != nil {
+			return nil, translate(findErr, "academic year")
+		}
+		if year.SchoolID != schoolID {
+			return nil, conflict("academic year belongs to a different school")
+		}
+		if !containsGrade(school.Grades, grade) {
+			return nil, validation("grade must belong to the selected school")
+		}
+		result = append(result, model.StudentGrade{
+			AcademicYearID: yearID, AcademicYearName: year.Name, Grade: grade, IsCurrent: year.IsCurrent,
+		})
+	}
+	return result, nil
+}
+
 func studentRequest(item model.Student) dto.StudentRequest {
+	grades := make([]dto.StudentGradeInput, len(item.Grades))
+	for index, grade := range item.Grades {
+		grades[index] = dto.StudentGradeInput{AcademicYearID: grade.AcademicYearID, Grade: grade.Grade}
+	}
 	return dto.StudentRequest{
 		SchoolID: item.SchoolID, FirstName: item.FirstName, LastName: item.LastName,
-		Email: item.Email, Phone: item.Phone, Grade: item.Grade,
+		Email: item.Email, Phone: item.Phone, Grades: grades,
 		Guardian:        dto.Guardian{Name: item.GuardianName, Email: item.GuardianEmail, Phone: item.GuardianPhone},
 		ResidentAddress: item.ResidentAddress, PermanentAddress: item.PermanentAddress,
 	}
@@ -443,9 +475,17 @@ func classDTO(item model.Class, detail bool) dto.Class {
 
 func studentDTO(item model.Student, detail bool) dto.Student {
 	performance := studentPerformance(item)
+	grades := make([]dto.StudentGrade, len(item.Grades))
+	for index, grade := range item.Grades {
+		grades[index] = dto.StudentGrade{
+			AcademicYearID: grade.AcademicYearID, AcademicYearName: grade.AcademicYearName,
+			Grade: grade.Grade, IsCurrent: grade.IsCurrent,
+		}
+	}
 	result := dto.Student{
 		ID: item.ID, SchoolID: item.SchoolID, FirstName: item.FirstName, LastName: item.LastName,
-		FullName: item.FullName(), Email: item.Email, Phone: item.Phone, Grade: item.Grade,
+		FullName: item.FullName(), Email: item.Email, Phone: item.Phone,
+		Grade: item.GradeFor(""), Grades: grades,
 		Guardian:        dto.Guardian{Name: item.GuardianName, Email: item.GuardianEmail, Phone: item.GuardianPhone},
 		ResidentAddress: item.ResidentAddress, PermanentAddress: item.PermanentAddress,
 		AverageScore: performance.AverageScore, ClassAverage: performance.ClassAverage,

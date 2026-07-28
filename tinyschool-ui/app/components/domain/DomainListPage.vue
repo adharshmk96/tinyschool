@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { StudentGrade } from '~/types/api'
+
 type Item = Record<string, unknown>
 
 const props = defineProps<{
@@ -11,13 +13,14 @@ const props = defineProps<{
   fields: Array<{ key: string, label: string, type?: string, options?: string[] }>
   cardFields: Array<{ key: string, label: string }>
   sortOptions: Array<{ label: string, value: string }>
+  academicYearFilter?: boolean
 }>()
 
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 const { getCollection, request } = useApi()
-const { selectedSchoolId, selectedYearId } = useSchoolContext()
+const { selectedSchoolId, selectedYearId, availableAcademicYears } = useSchoolContext()
 const modalOpen = ref(false)
 const editing = ref<Item | null>(null)
 const form = reactive<Record<string, string>>({})
@@ -31,18 +34,27 @@ const sort = ref(String(route.query.sort || props.sortOptions[0]?.value || 'name
 const order = ref(route.query.order === 'asc' ? 'asc' : 'desc')
 const page = ref(Math.max(1, Number(route.query.page) || 1))
 const pageSize = 8
+// The sidebar selector is the only academic year switch in the app.
+const currentYearLabel = computed(() => {
+  const year = availableAcademicYears.value.find(item => item.id === selectedYearId.value)
+  if (!year) return 'No academic year'
+  return year.isCurrent ? `${year.name} (current)` : year.name
+})
 
 const query = computed(() => ({
   search: search.value || undefined,
   sort: sort.value,
   order: order.value,
+  academicYearId: props.academicYearFilter ? selectedYearId.value || undefined : undefined,
   page: page.value,
   pageSize
 }))
+
 const endpointPath = computed(() => props.endpoint.replace(/^\/api\/v1/, ''))
 const classOptions = ref<Array<{ label: string, value: string }>>([])
 const studentOptions = ref<Array<{ label: string, value: string }>>([])
 const selectedStudentIds = ref<string[]>([])
+const gradeRows = ref<StudentGrade[]>([])
 
 if (props.endpoint.endsWith('/assignments') || props.endpoint.endsWith('/exams')) {
   try {
@@ -77,7 +89,7 @@ const { data, status, error, refresh } = await useAsyncData(
 const items = computed(() => Array.isArray(data.value?.data) ? data.value.data : [])
 const total = computed(() => Number(data.value?.meta?.total ?? items.value.length))
 
-watch([search, sort, order, page], () => {
+watch([search, sort, order, page, selectedYearId], () => {
   router.replace({
     query: {
       ...(search.value ? { search: search.value } : {}),
@@ -88,7 +100,7 @@ watch([search, sort, order, page], () => {
   })
 })
 
-watch([search, sort, order], () => {
+watch([search, sort, order, selectedYearId], () => {
   page.value = 1
 })
 
@@ -116,6 +128,7 @@ function itemTitle(item: Item) {
 function openCreate() {
   editing.value = null
   selectedStudentIds.value = []
+  gradeRows.value = selectedYearId.value ? [{ academicYearId: selectedYearId.value, grade: '' }] : []
   for (const field of props.fields)
     form[field.key] = ''
   modalOpen.value = true
@@ -123,7 +136,12 @@ function openCreate() {
 
 function openEdit(item: Item) {
   editing.value = item
+  gradeRows.value = Array.isArray(item.grades)
+    ? (item.grades as StudentGrade[]).map(row => ({ academicYearId: row.academicYearId, grade: row.grade }))
+    : []
   for (const field of props.fields) {
+    if (field.type === 'grades')
+      continue
     let fieldValue = value(item, field.key)
     if (field.key === 'type' && props.endpoint.endsWith('/assignments'))
       fieldValue = fieldValue.charAt(0).toUpperCase() + fieldValue.slice(1)
@@ -137,9 +155,16 @@ function openEdit(item: Item) {
   modalOpen.value = true
 }
 
+// The academic year is fixed by the page filter: it is set once on create and
+// never sent again, so editing a record can never move it to another year.
 function mutationBody() {
   const body: Record<string, unknown> = {}
+  const creating = !editing.value
   for (const field of props.fields) {
+    if (field.type === 'grades') {
+      body[field.key] = gradeRows.value.filter(row => row.academicYearId && row.grade)
+      continue
+    }
     const raw = form[field.key]?.trim() ?? ''
     body[field.key] = field.type === 'number' ? Number(raw) : raw
   }
@@ -156,11 +181,13 @@ function mutationBody() {
   }
   if (props.endpoint.endsWith('/classes')) {
     body.schoolId = selectedSchoolId.value
-    body.academicYearId = selectedYearId.value
+    if (creating)
+      body.academicYearId = selectedYearId.value
   }
   if (props.endpoint.endsWith('/assignments')) {
     body.schoolId = selectedSchoolId.value
-    body.academicYearId = selectedYearId.value
+    if (creating)
+      body.academicYearId = selectedYearId.value
     body.type = String(body.type).toLowerCase()
     const ids = String(body.assignees || '').split(',').map(value => value.trim()).filter(Boolean)
     if (body.type === 'class')
@@ -171,7 +198,8 @@ function mutationBody() {
   }
   if (props.endpoint.endsWith('/exams')) {
     body.schoolId = selectedSchoolId.value
-    body.academicYearId = selectedYearId.value
+    if (creating)
+      body.academicYearId = selectedYearId.value
     body.classId = body.class
     body.type = 'exam'
     delete body.class
@@ -391,13 +419,30 @@ async function remove() {
           @submit.prevent="save"
         >
           <UFormField
+            v-if="academicYearFilter"
+            label="Academic year"
+          >
+            <UInput
+              :model-value="currentYearLabel"
+              disabled
+              class="w-full"
+            />
+            <template #help>
+              Set from the academic year in the sidebar and cannot be changed here.
+            </template>
+          </UFormField>
+          <UFormField
             v-for="field in fields"
             :key="field.key"
             :label="field.label"
             required
           >
+            <StudentGradesField
+              v-if="field.type === 'grades'"
+              v-model="gradeRows"
+            />
             <UTextarea
-              v-if="field.type === 'textarea'"
+              v-else-if="field.type === 'textarea'"
               v-model="form[field.key]"
               class="w-full"
             />

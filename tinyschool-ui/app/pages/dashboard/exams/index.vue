@@ -10,6 +10,7 @@ definePageMeta({ layout: 'dashboard' })
     icon="i-lucide-file-check-2"
     detail-base="/dashboard/exams"
     description="Schedule examinations and track marking progress by class."
+    academic-year-filter
     :sort-options="[
       { label: 'Exam date', value: 'examDate' },
       { label: 'Name', value: 'name' },

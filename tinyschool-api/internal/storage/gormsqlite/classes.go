@@ -11,6 +11,9 @@ import (
 
 func (s *Store) ListClasses(ctx context.Context, options storage.ListOptions) ([]model.Class, int64, error) {
 	query := s.db.WithContext(ctx).Model(&classRecord{}).Where("classes.user_id = ?", userID(ctx))
+	if options.AcademicYearID != "" {
+		query = query.Where("classes.academic_year_id = ?", options.AcademicYearID)
+	}
 	if options.Search != "" {
 		p := contains(options.Search)
 		query = query.Where("LOWER(name) LIKE ? OR LOWER(subject) LIKE ? OR LOWER(grade) LIKE ? OR LOWER(description) LIKE ?", p, p, p, p)
@@ -21,7 +24,7 @@ func (s *Store) ListClasses(ctx context.Context, options storage.ListOptions) ([
 	}
 	allowed := map[string]string{"name": "name", "subject": "subject", "grade": "grade", "studentCount": "(SELECT COUNT(*) FROM class_students cs WHERE cs.class_id = classes.id)"}
 	var records []classRecord
-	err := paginate(order(query, options, allowed, "name"), options).Preload("Students").Find(&records).Error
+	err := paginate(order(query, options, allowed, "name"), options).Preload("Students.Grades.AcademicYear").Find(&records).Error
 	items := make([]model.Class, len(records))
 	for i := range records {
 		items[i] = classModel(records[i])
@@ -31,7 +34,7 @@ func (s *Store) ListClasses(ctx context.Context, options storage.ListOptions) ([
 
 func (s *Store) Class(ctx context.Context, id string) (model.Class, error) {
 	var record classRecord
-	if err := s.db.WithContext(ctx).Preload("Students").First(&record, "id = ? AND user_id = ?", id, userID(ctx)).Error; err != nil {
+	if err := s.db.WithContext(ctx).Preload("Students.Grades.AcademicYear").First(&record, "id = ? AND user_id = ?", id, userID(ctx)).Error; err != nil {
 		return model.Class{}, storageError(err)
 	}
 	result := classModel(record)

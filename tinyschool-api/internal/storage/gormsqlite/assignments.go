@@ -12,11 +12,14 @@ import (
 )
 
 func assignmentPreloads(db *gorm.DB) *gorm.DB {
-	return db.Preload("Class").Preload("Students.Student")
+	return db.Preload("Class").Preload("Students.Student.Grades.AcademicYear")
 }
 
 func (s *Store) ListAssignments(ctx context.Context, options storage.ListOptions) ([]model.Assignment, int64, error) {
 	query := s.db.WithContext(ctx).Model(&assignmentRecord{}).Where("assignments.user_id = ?", userID(ctx))
+	if options.AcademicYearID != "" {
+		query = query.Where("assignments.academic_year_id = ?", options.AcademicYearID)
+	}
 	if options.Search != "" {
 		p := contains(options.Search)
 		query = query.Where("LOWER(assignments.name) LIKE ? OR LOWER(assignments.type) LIKE ? OR EXISTS (SELECT 1 FROM classes c WHERE c.id = assignments.class_id AND LOWER(c.name) LIKE ?)", p, p, p)

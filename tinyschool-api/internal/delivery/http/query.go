@@ -26,11 +26,12 @@ func listOptions(r *http.Request) (dto.ListOptions, error) {
 		return dto.ListOptions{}, fmt.Errorf("pageSize must be between 1 and 100")
 	}
 	return dto.ListOptions{
-		Search:   strings.TrimSpace(query.Get("search")),
-		Sort:     strings.TrimSpace(query.Get("sort")),
-		Order:    strings.TrimSpace(query.Get("order")),
-		Page:     page,
-		PageSize: pageSize,
+		Search:         strings.TrimSpace(query.Get("search")),
+		AcademicYearID: strings.TrimSpace(query.Get("academicYearId")),
+		Sort:           strings.TrimSpace(query.Get("sort")),
+		Order:          strings.TrimSpace(query.Get("order")),
+		Page:           page,
+		PageSize:       pageSize,
 	}, nil
 }
 

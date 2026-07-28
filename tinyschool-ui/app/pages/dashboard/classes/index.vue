@@ -17,6 +17,7 @@ const fields = computed(() => [
     icon="i-lucide-presentation"
     detail-base="/dashboard/classes"
     description="Organize classes by subject and grade for the active academic year."
+    academic-year-filter
     :sort-options="[
       { label: 'Name', value: 'name' },
       { label: 'Subject', value: 'subject' },

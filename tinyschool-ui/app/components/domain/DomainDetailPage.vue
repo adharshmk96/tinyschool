@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { StudentGrade } from '~/types/api'
+
 type Item = Record<string, unknown>
 
 const props = defineProps<{
@@ -20,6 +22,7 @@ const { request } = useApi()
 const editOpen = ref(false)
 const saving = ref(false)
 const form = reactive<Record<string, string>>({})
+const gradeRows = ref<StudentGrade[]>([])
 const id = computed(() => String(route.params.id))
 const apiPath = computed(() => `${props.endpoint.replace(/^\/api\/v1/, '')}/${id.value}`)
 const { data, status, error, refresh } = await useAsyncData(
@@ -50,7 +53,12 @@ function setTab(tab: string) {
 }
 
 function openEdit() {
+  gradeRows.value = Array.isArray(item.value.grades)
+    ? (item.value.grades as StudentGrade[]).map(row => ({ academicYearId: row.academicYearId, grade: row.grade }))
+    : []
   for (const field of props.editFields ?? []) {
+    if (field.type === 'grades')
+      continue
     const current = rawValue(field.key)
     form[field.key] = current === undefined || current === null ? '' : String(current)
   }
@@ -59,8 +67,13 @@ function openEdit() {
 
 async function saveEdit() {
   const body: Record<string, unknown> = {}
-  for (const field of props.editFields ?? [])
+  for (const field of props.editFields ?? []) {
+    if (field.type === 'grades') {
+      body[field.key] = gradeRows.value.filter(row => row.academicYearId && row.grade)
+      continue
+    }
     body[field.key] = field.type === 'number' ? Number(form[field.key]) : form[field.key]
+  }
   saving.value = true
   try {
     await request(`${props.endpoint.replace(/^\/api\/v1/, '')}/${id.value}`, { method: 'PATCH', body })
@@ -176,8 +189,12 @@ async function saveEdit() {
             :key="field.key"
             :label="field.label"
           >
+            <StudentGradesField
+              v-if="field.type === 'grades'"
+              v-model="gradeRows"
+            />
             <USelect
-              v-if="field.options"
+              v-else-if="field.options"
               v-model="form[field.key]"
               :items="field.options"
               class="w-full"

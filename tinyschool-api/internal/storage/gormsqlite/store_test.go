@@ -86,6 +86,62 @@ func TestStoreMigrateSeedAndPersist(t *testing.T) {
 	}
 }
 
+func TestStudentGradesFollowAcademicYear(t *testing.T) {
+	ctx := tenancy.WithUserID(context.Background(), "usr_001")
+	store, err := Open(filepath.Join(t.TempDir(), "school.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	if err := store.AutoMigrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Seed(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	student, err := store.Student(ctx, "stu_001")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := student.GradeFor("ay_2026"); got != "Grade 7" {
+		t.Fatalf("current year grade = %q, want Grade 7", got)
+	}
+	if got := student.GradeFor("ay_2025"); got != "Grade 6" {
+		t.Fatalf("previous year grade = %q, want Grade 6", got)
+	}
+
+	// Students are not scoped to a year, so listing them is year independent.
+	_, total, err := store.ListStudents(ctx, storage.ListOptions{Page: 1, PageSize: 10, AcademicYearID: "ay_2025"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if total != 8 {
+		t.Fatalf("student total = %d, want 8", total)
+	}
+
+	// Classes, however, belong to one year.
+	classes, classTotal, err := store.ListClasses(ctx, storage.ListOptions{Page: 1, PageSize: 10, AcademicYearID: "ay_2025"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if classTotal != 0 || len(classes) != 0 {
+		t.Fatalf("expected no classes in the previous year, got %d", classTotal)
+	}
+
+	student.Grades = []model.StudentGrade{{AcademicYearID: "ay_2026", Grade: "Grade 8"}}
+	if _, err := store.UpdateStudent(ctx, student); err != nil {
+		t.Fatal(err)
+	}
+	updated, err := store.Student(ctx, "stu_001")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(updated.Grades) != 1 || updated.GradeFor("ay_2026") != "Grade 8" {
+		t.Fatalf("grades were not replaced: %+v", updated.Grades)
+	}
+}
+
 func TestClearUserDataDoesNotDeleteAnotherUsersData(t *testing.T) {
 	store, err := Open(filepath.Join(t.TempDir(), "school.db"))
 	if err != nil {

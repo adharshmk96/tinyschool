@@ -10,6 +10,7 @@ definePageMeta({ layout: 'dashboard' })
     icon="i-lucide-clipboard-check"
     detail-base="/dashboard/assignments"
     description="Track class and individual work, due dates, completion and scores."
+    academic-year-filter
     :sort-options="[
       { label: 'Due date', value: 'dueDate' },
       { label: 'Name', value: 'name' },

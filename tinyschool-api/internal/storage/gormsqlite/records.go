@@ -11,6 +11,7 @@ func (academicSegmentRecord) TableName() string   { return "academic_segments" }
 func (classRecord) TableName() string             { return "classes" }
 func (classStudentRecord) TableName() string      { return "class_students" }
 func (studentRecord) TableName() string           { return "students" }
+func (studentGradeRecord) TableName() string      { return "student_grades" }
 func (studentLogRecord) TableName() string        { return "student_logs" }
 func (assignmentRecord) TableName() string        { return "assignments" }
 func (assignmentStudentRecord) TableName() string { return "assignment_students" }
@@ -76,9 +77,19 @@ type studentRecord struct {
 	UserID                                     string       `gorm:"not null;default:'';index"`
 	SchoolID                                   string       `gorm:"not null;index"`
 	School                                     schoolRecord `gorm:"foreignKey:SchoolID;references:ID"`
-	FirstName, LastName, Email, Phone, Grade   string
+	FirstName, LastName, Email, Phone          string
 	GuardianName, GuardianEmail, GuardianPhone string
 	ResidentAddress, PermanentAddress          string
+	Grades                                     []studentGradeRecord `gorm:"foreignKey:StudentID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
+}
+
+// studentGradeRecord stores the grade a student sits in for one academic year.
+// Students themselves are never scoped to a year; only their grade is.
+type studentGradeRecord struct {
+	StudentID      string             `gorm:"primaryKey"`
+	AcademicYearID string             `gorm:"primaryKey"`
+	Grade          string             `gorm:"not null;collate:nocase"`
+	AcademicYear   academicYearRecord `gorm:"foreignKey:AcademicYearID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
 }
 
 type classRecord struct {

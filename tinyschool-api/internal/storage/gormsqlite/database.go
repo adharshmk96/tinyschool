@@ -71,7 +71,7 @@ func (s *Store) AutoMigrate(ctx context.Context) error {
 	err := s.db.WithContext(ctx).AutoMigrate(
 		&userRecord{}, &sessionRecord{}, &schoolRecord{}, &schoolGradeRecord{},
 		&academicYearRecord{}, &academicSegmentRecord{}, &studentRecord{},
-		&classRecord{}, &classStudentRecord{}, &studentLogRecord{},
+		&studentGradeRecord{}, &classRecord{}, &classStudentRecord{}, &studentLogRecord{},
 		&assignmentRecord{}, &assignmentStudentRecord{},
 		&examRecord{}, &examStudentRecord{},
 	)
@@ -94,6 +94,34 @@ func (s *Store) AutoMigrate(ctx context.Context) error {
 	).Error; err != nil {
 		return fmt.Errorf("create current academic year index: %w", err)
 	}
+	if err := s.backfillStudentGrades(ctx); err != nil {
+		return err
+	}
+	return nil
+}
+
+// backfillStudentGrades moves the legacy students.grade column into the
+// per-academic-year table, attaching each grade to the school's current year.
+func (s *Store) backfillStudentGrades(ctx context.Context) error {
+	db := s.db.WithContext(ctx)
+	var legacyColumns int64
+	if err := db.Raw("SELECT COUNT(*) FROM pragma_table_info('students') WHERE name = 'grade'").Scan(&legacyColumns).Error; err != nil {
+		return fmt.Errorf("inspect students table: %w", err)
+	}
+	if legacyColumns == 0 {
+		return nil
+	}
+	err := db.Exec(`
+		INSERT INTO student_grades (student_id, academic_year_id, grade)
+		SELECT s.id, ay.id, s.grade
+		FROM students s
+		JOIN academic_years ay ON ay.school_id = s.school_id AND ay.is_current = 1
+		WHERE s.grade IS NOT NULL AND s.grade <> ''
+		  AND NOT EXISTS (SELECT 1 FROM student_grades sg WHERE sg.student_id = s.id AND sg.academic_year_id = ay.id)
+	`).Error
+	if err != nil {
+		return fmt.Errorf("backfill student grades: %w", err)
+	}
 	return nil
 }
 
@@ -112,6 +140,7 @@ func (s *Store) ClearUserData(ctx context.Context) error {
 			{"DELETE FROM assignment_students WHERE assignment_id IN (SELECT id FROM assignments WHERE user_id = ?)", []any{id}},
 			{"DELETE FROM exam_students WHERE exam_id IN (SELECT id FROM exams WHERE user_id = ?)", []any{id}},
 			{"DELETE FROM student_logs WHERE student_id IN (SELECT id FROM students WHERE user_id = ?)", []any{id}},
+			{"DELETE FROM student_grades WHERE student_id IN (SELECT id FROM students WHERE user_id = ?)", []any{id}},
 			{"DELETE FROM class_students WHERE class_id IN (SELECT id FROM classes WHERE user_id = ?)", []any{id}},
 			{"DELETE FROM exams WHERE user_id = ?", []any{id}},
 			{"DELETE FROM assignments WHERE user_id = ?", []any{id}},

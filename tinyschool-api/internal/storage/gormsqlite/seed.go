@@ -77,7 +77,10 @@ func seedFixtures(tx *gorm.DB) error {
 		studentFixture("stu_007", "Ethan", "Wilson", "Grade 8", "ethan.wilson@example.test", "+91 98765 11007", "Grace Wilson"),
 		studentFixture("stu_008", "Sophia", "Garcia", "Grade 8", "sophia.garcia@example.test", "+91 98765 11008", "Mateo Garcia"),
 	}
-	if err := tx.Create(&students).Error; err != nil {
+	if err := tx.Omit("Grades").Create(&students).Error; err != nil {
+		return err
+	}
+	if err := seedStudentGrades(tx, students); err != nil {
 		return err
 	}
 	classes := []classRecord{
@@ -119,7 +122,38 @@ func seedFixtures(tx *gorm.DB) error {
 }
 
 func studentFixture(id, first, last, grade, email, phone, guardian string) studentRecord {
-	return studentRecord{ID: id, UserID: "usr_001", SchoolID: "sch_001", FirstName: first, LastName: last, Grade: grade, Email: email, Phone: phone, GuardianName: guardian}
+	return studentRecord{
+		ID: id, UserID: "usr_001", SchoolID: "sch_001", FirstName: first, LastName: last,
+		Email: email, Phone: phone, GuardianName: guardian,
+		Grades: []studentGradeRecord{{StudentID: id, AcademicYearID: "ay_2026", Grade: grade}},
+	}
+}
+
+// previousGrade steps a "Grade N" label one year back for the prior year rows.
+func previousGrade(grade string) string {
+	var number int
+	if _, err := fmt.Sscanf(grade, "Grade %d", &number); err != nil || number <= 1 {
+		return grade
+	}
+	return fmt.Sprintf("Grade %d", number-1)
+}
+
+// seedStudentGrades records each seeded student in the current year with the
+// grade from their fixture, and one grade lower in the previous year.
+func seedStudentGrades(tx *gorm.DB, students []studentRecord) error {
+	for _, student := range students {
+		grade := student.Grades[0].Grade
+		rows := []studentGradeRecord{
+			{StudentID: student.ID, AcademicYearID: "ay_2026", Grade: grade},
+			{StudentID: student.ID, AcademicYearID: "ay_2025", Grade: previousGrade(grade)},
+		}
+		for _, row := range rows {
+			if err := tx.Omit("AcademicYear").Create(&row).Error; err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func seedAssignments(tx *gorm.DB) error {

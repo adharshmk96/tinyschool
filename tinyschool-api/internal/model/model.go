@@ -33,14 +33,39 @@ type AcademicYear struct {
 
 type Reference struct{ ID, Name string }
 
+type StudentGrade struct {
+	AcademicYearID, AcademicYearName, Grade string
+	IsCurrent                               bool
+}
+
 type Student struct {
-	ID, SchoolID, FirstName, LastName, Email, Phone, Grade string
-	GuardianName, GuardianEmail, GuardianPhone             string
-	ResidentAddress, PermanentAddress                      string
-	Classes                                                []Reference
-	Logs                                                   []StudentLog
-	Assignments                                            []Result
-	Exams                                                  []Result
+	ID, SchoolID, FirstName, LastName, Email, Phone string
+	GuardianName, GuardianEmail, GuardianPhone      string
+	ResidentAddress, PermanentAddress               string
+	Grades                                          []StudentGrade
+	Classes                                         []Reference
+	Logs                                            []StudentLog
+	Assignments                                     []Result
+	Exams                                           []Result
+}
+
+// GradeFor returns the grade recorded for the given academic year. When the
+// student has no entry for that year it falls back to the current year so
+// listings still show a meaningful grade.
+func (s Student) GradeFor(academicYearID string) string {
+	if academicYearID != "" {
+		for _, grade := range s.Grades {
+			if grade.AcademicYearID == academicYearID {
+				return grade.Grade
+			}
+		}
+	}
+	for _, grade := range s.Grades {
+		if grade.IsCurrent {
+			return grade.Grade
+		}
+	}
+	return ""
 }
 
 func (s Student) FullName() string {

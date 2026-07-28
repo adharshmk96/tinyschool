@@ -26,6 +26,13 @@ export interface School {
   grades: string[]
 }
 
+export interface StudentGrade {
+  academicYearId: string
+  academicYearName?: string
+  grade: string
+  isCurrent?: boolean
+}
+
 export interface AcademicSegment {
   id?: string
   name: string

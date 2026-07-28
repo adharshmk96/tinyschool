@@ -1,6 +1,10 @@
 package gormsqlite
 
-import "tinyschool-api/internal/model"
+import (
+	"sort"
+
+	"tinyschool-api/internal/model"
+)
 
 func userModel(r userRecord) model.User {
 	return model.User{ID: r.ID, Name: r.Name, Email: r.Email, PasswordHash: r.PasswordHash}
@@ -23,12 +27,25 @@ func yearModel(r academicYearRecord) model.AcademicYear {
 }
 
 func studentModel(r studentRecord) model.Student {
-	return model.Student{
+	m := model.Student{
 		ID: r.ID, SchoolID: r.SchoolID, FirstName: r.FirstName, LastName: r.LastName,
-		Email: r.Email, Phone: r.Phone, Grade: r.Grade, GuardianName: r.GuardianName,
+		Email: r.Email, Phone: r.Phone, GuardianName: r.GuardianName,
 		GuardianEmail: r.GuardianEmail, GuardianPhone: r.GuardianPhone,
 		ResidentAddress: r.ResidentAddress, PermanentAddress: r.PermanentAddress,
 	}
+	grades := append([]studentGradeRecord(nil), r.Grades...)
+	sort.Slice(grades, func(i, j int) bool {
+		return grades[i].AcademicYear.StartDate < grades[j].AcademicYear.StartDate
+	})
+	for _, grade := range grades {
+		m.Grades = append(m.Grades, model.StudentGrade{
+			AcademicYearID:   grade.AcademicYearID,
+			AcademicYearName: grade.AcademicYear.Name,
+			Grade:            grade.Grade,
+			IsCurrent:        grade.AcademicYear.IsCurrent,
+		})
+	}
+	return m
 }
 
 func classModel(r classRecord) model.Class {
