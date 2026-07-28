@@ -28,6 +28,14 @@ onMounted(() => {
       { key: 'guardian.phone', label: 'Guardian phone' },
       { key: 'residentAddress', label: 'Resident address' }
     ]"
+    :edit-fields="[
+      { key: 'firstName', label: 'First name' },
+      { key: 'lastName', label: 'Last name' },
+      { key: 'email', label: 'Email', type: 'email' },
+      { key: 'phone', label: 'Phone' },
+      { key: 'grade', label: 'Grade' },
+      { key: 'residentAddress', label: 'Resident address' }
+    ]"
     :tabs="[
       { label: 'Performance', value: 'performance', icon: 'i-lucide-chart-no-axes-combined' },
       { label: 'Behaviour', value: 'behaviour', icon: 'i-lucide-heart-handshake' },
@@ -36,16 +44,36 @@ onMounted(() => {
       { label: 'Notes', value: 'notes', icon: 'i-lucide-notebook-pen' }
     ]"
   >
-    <template #default="{ item }">
+    <template #default="{ item, refresh }">
       <DomainPerformancePanel
         v-if="activeTab === 'performance'"
         subject="Assignments"
         :data="item.performance"
       />
-      <DomainActivityLogPanel v-else-if="activeTab === 'behaviour'" kind="behaviour" :items="item.behaviour" />
-      <DomainScoreList v-else-if="activeTab === 'assignments'" kind="student" :items="item.assignments" />
-      <DomainScoreList v-else-if="activeTab === 'exams'" kind="student" :items="item.exams" />
-      <DomainActivityLogPanel v-else kind="notes" :items="item.notes" />
+      <DomainActivityLogPanel
+        v-else-if="activeTab === 'behaviour'"
+        kind="behaviour"
+        :items="item.behaviour"
+        @changed="refresh"
+      />
+      <DomainScoreList
+        v-else-if="activeTab === 'assignments'"
+        kind="student"
+        :items="item.assignments"
+        @changed="refresh"
+      />
+      <DomainScoreList
+        v-else-if="activeTab === 'exams'"
+        kind="student"
+        :items="item.exams"
+        @changed="refresh"
+      />
+      <DomainActivityLogPanel
+        v-else
+        kind="notes"
+        :items="item.notes"
+        @changed="refresh"
+      />
     </template>
   </DomainDetailPage>
 </template>

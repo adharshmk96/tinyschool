@@ -1,7 +1,12 @@
 <script setup lang="ts">
+import type { User } from '~/types/api'
+
 const route = useRoute()
 const toast = useToast()
 const mobileOpen = ref(false)
+const logoutPending = ref(false)
+const currentUser = useState<User | null>('current-user', () => null)
+const { getItem, post } = useApi()
 const { schools, academicYears, selectedSchoolId, selectedYearId, selectedSchool, selectedYear, loading, load } = useSchoolContext()
 
 const navigation = [
@@ -21,10 +26,23 @@ function isActive(path: string) {
   return path === '/dashboard' ? route.path === path : route.path.startsWith(path)
 }
 
-function logout() {
-  useCookie('tiny-school-session').value = null
-  toast.add({ title: 'Signed out', description: 'Your local session has ended.', color: 'success' })
-  navigateTo('/')
+async function logout() {
+  if (logoutPending.value) return
+  logoutPending.value = true
+  try {
+    await post('/auth/logout')
+  } catch (error) {
+    toast.add({
+      title: 'Server logout failed',
+      description: apiErrorMessage(error, 'Your local sign-in marker was still cleared.'),
+      color: 'error'
+    })
+  } finally {
+    useCookie('tiny-school-authenticated').value = null
+    currentUser.value = null
+    logoutPending.value = false
+    await navigateTo('/login')
+  }
 }
 
 watch(() => route.fullPath, () => {
@@ -33,7 +51,11 @@ watch(() => route.fullPath, () => {
 
 onMounted(async () => {
   try {
-    await load()
+    const [user] = await Promise.all([
+      getItem<User>('/me'),
+      load()
+    ])
+    currentUser.value = user.data
   } catch {
     toast.add({
       title: 'Could not load school context',
@@ -108,12 +130,12 @@ onMounted(async () => {
             class="w-full justify-start"
           >
             <UAvatar
-              text="AM"
+              :text="currentUser?.name.split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase() || 'TS'"
               size="sm"
             />
             <span class="min-w-0 flex-1 text-left">
-              <span class="block truncate text-sm font-semibold">Avery Morgan</span>
-              <span class="block truncate text-xs font-normal text-muted">avery@tinyschool.test</span>
+              <span class="block truncate text-sm font-semibold">{{ currentUser?.name || 'Tiny School user' }}</span>
+              <span class="block truncate text-xs font-normal text-muted">{{ currentUser?.email || 'Loading account…' }}</span>
             </span>
             <UIcon
               name="i-lucide-chevrons-up-down"
@@ -186,6 +208,37 @@ onMounted(async () => {
               class="w-full justify-start"
             />
           </nav>
+        </div>
+      </template>
+      <template #footer>
+        <div class="w-full space-y-2">
+          <div class="flex items-center gap-3 px-2 pb-2">
+            <UAvatar
+              :text="currentUser?.name.split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase() || 'TS'"
+              size="sm"
+            />
+            <span class="min-w-0">
+              <span class="block truncate text-sm font-semibold">{{ currentUser?.name || 'Tiny School user' }}</span>
+              <span class="block truncate text-xs text-muted">{{ currentUser?.email || 'Loading account…' }}</span>
+            </span>
+          </div>
+          <UButton
+            to="/dashboard/settings/account"
+            icon="i-lucide-settings"
+            label="Settings"
+            color="neutral"
+            variant="ghost"
+            class="w-full justify-start"
+          />
+          <UButton
+            icon="i-lucide-log-out"
+            label="Log out"
+            color="error"
+            variant="ghost"
+            class="w-full justify-start"
+            :loading="logoutPending"
+            @click="logout"
+          />
         </div>
       </template>
     </USlideover>

@@ -1,6 +1,6 @@
 # Tiny School
 
-Nuxt UI dashboard backed by a Go API with realistic in-memory placeholder data.
+Nuxt UI dashboard backed by a persistent Go, GORM, and SQLite API.
 
 ## Run locally
 
@@ -21,4 +21,40 @@ Stop both servers with:
 
 ```bash
 ./stop-local.sh
+```
+
+Local data is stored in `.runs/local/tinyschool.db`. A new database is migrated
+and seeded automatically. The seeded login is:
+
+```text
+alex@tinyschool.local
+password
+```
+
+## API architecture
+
+```text
+Cobra/Viper -> server -> delivery/http -> service -> storage interface
+                                                     |
+                                                     v
+                                            storage/gormsqlite
+```
+
+- `internal/model`: database-independent domain models.
+- `internal/dto`: request and response contracts.
+- `internal/service`: validation and business rules.
+- `internal/storage`: replaceable persistence interface.
+- `internal/storage/gormsqlite`: all GORM, SQLite, migration, seed, and query
+  code.
+- `internal/delivery/http`: handlers and HTTP middleware.
+- `internal/server`: routes and graceful shutdown.
+
+The detailed endpoint contract and implementation plan is in
+`requirements/api-plan.md`.
+
+Run the API directly:
+
+```bash
+cd tinyschool-api
+go run . --database ./tinyschool.db --address :8080
 ```

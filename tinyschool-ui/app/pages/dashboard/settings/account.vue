@@ -5,8 +5,15 @@ definePageMeta({ layout: 'dashboard' })
 useSeoMeta({ title: 'Account settings' })
 
 const toast = useToast()
-const { getItem } = useApi()
-const { data, status, error } = await useAsyncData('me', async () => (await getItem<User>('/me')).data, {
+const { getItem, patchItem, put } = useApi()
+const profilePending = ref(false)
+const passwordPending = ref(false)
+const currentUser = useState<User | null>('current-user', () => null)
+const { data, status, error } = await useAsyncData('me', async () => {
+  const user = (await getItem<User>('/me')).data
+  currentUser.value = user
+  return user
+}, {
   default: () => ({ id: '', name: '', email: '' })
 })
 const profile = reactive({ name: '', email: '' })
@@ -17,15 +24,29 @@ watch(data, (user) => {
   profile.email = user?.email || ''
 }, { immediate: true })
 
-function saveProfile() {
+async function saveProfile() {
   if (!profile.name.trim()) {
     toast.add({ title: 'Name is required', color: 'error' })
     return
   }
-  toast.add({ title: 'Profile updated', description: 'Placeholder changes are saved for this session.', color: 'success' })
+  profilePending.value = true
+  try {
+    const user = (await patchItem<User>('/me', { name: profile.name.trim() })).data
+    data.value = user
+    currentUser.value = user
+    toast.add({ title: 'Profile updated', color: 'success' })
+  } catch (error) {
+    toast.add({
+      title: 'Could not update profile',
+      description: apiErrorMessage(error, 'Try again in a moment.'),
+      color: 'error'
+    })
+  } finally {
+    profilePending.value = false
+  }
 }
 
-function changePassword() {
+async function changePassword() {
   if (!password.current || password.next.length < 8) {
     toast.add({ title: 'Check your passwords', description: 'Enter your current password and use at least 8 characters.', color: 'error' })
     return
@@ -34,10 +55,25 @@ function changePassword() {
     toast.add({ title: 'New passwords do not match', color: 'error' })
     return
   }
-  password.current = ''
-  password.next = ''
-  password.confirm = ''
-  toast.add({ title: 'Password updated', color: 'success' })
+  passwordPending.value = true
+  try {
+    await put('/me/password', {
+      currentPassword: password.current,
+      newPassword: password.next
+    })
+    password.current = ''
+    password.next = ''
+    password.confirm = ''
+    toast.add({ title: 'Password updated', description: 'Other signed-in sessions were revoked.', color: 'success' })
+  } catch (error) {
+    toast.add({
+      title: 'Could not update password',
+      description: apiErrorMessage(error, 'Check your current password and try again.'),
+      color: 'error'
+    })
+  } finally {
+    passwordPending.value = false
+  }
 }
 </script>
 
@@ -90,6 +126,7 @@ function changePassword() {
             type="submit"
             icon="i-lucide-save"
             label="Save profile"
+            :loading="profilePending"
           />
         </form>
       </UCard>
@@ -147,6 +184,7 @@ function changePassword() {
             color="neutral"
             icon="i-lucide-key-round"
             label="Update password"
+            :loading="passwordPending"
           />
         </form>
       </UCard>

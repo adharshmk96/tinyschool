@@ -1,8 +1,9 @@
 <script setup lang="ts">
 const route = useRoute()
 const toast = useToast()
+const { postItem } = useApi()
 const pending = ref(false)
-const form = reactive({ email: 'avery@tinyschool.test', password: 'password' })
+const form = reactive({ email: 'alex@tinyschool.local', password: 'password' })
 
 async function submit() {
   if (!form.email || !form.password) {
@@ -11,10 +12,22 @@ async function submit() {
   }
   pending.value = true
   try {
-    await new Promise(resolve => setTimeout(resolve, 350))
-    useCookie('tiny-school-session', { sameSite: 'lax' }).value = 'local-placeholder-session'
+    await postItem('/auth/login', {
+      email: form.email.trim(),
+      password: form.password
+    })
+    useCookie('tiny-school-authenticated', {
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24
+    }).value = 'true'
     toast.add({ title: 'Welcome back', description: 'You are signed in.', color: 'success' })
     await navigateTo(typeof route.query.redirect === 'string' ? route.query.redirect : '/dashboard')
+  } catch (error) {
+    toast.add({
+      title: 'Could not log in',
+      description: apiErrorMessage(error, 'Check your email and password, then try again.'),
+      color: 'error'
+    })
   } finally {
     pending.value = false
   }

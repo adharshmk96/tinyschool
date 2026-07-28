@@ -5,12 +5,15 @@ definePageMeta({ layout: 'dashboard' })
 useSeoMeta({ title: 'School settings' })
 
 const toast = useToast()
+const { postItem, patchItem, request } = useApi()
 const { schools, selectedSchoolId, load } = useSchoolContext()
 const modalOpen = ref(false)
 const deleteOpen = ref(false)
 const editingId = ref<string | null>(null)
 const deleting = ref<School | null>(null)
 const form = reactive({ name: '', grades: '' })
+const saving = ref(false)
+const deletingSchool = ref(false)
 
 function openCreate() {
   editingId.value = null
@@ -26,23 +29,34 @@ function openEdit(school: School) {
   modalOpen.value = true
 }
 
-function save() {
+async function save() {
   const name = form.name.trim()
-  const grades = form.grades.split(',').map(item => item.trim()).filter(Boolean)
+  const grades = [...new Set(form.grades.split(',').map(item => item.trim()).filter(Boolean))]
   if (!name || !grades.length) {
     toast.add({ title: 'School name and grades are required', color: 'error' })
     return
   }
-  if (editingId.value) {
-    const school = schools.value.find(item => item.id === editingId.value)
-    if (school) Object.assign(school, { name, grades })
-  } else {
-    const id = `school-${Date.now()}`
-    schools.value.push({ id, name, grades })
-    selectedSchoolId.value = id
+  saving.value = true
+  try {
+    const existing = schools.value.find(item => item.id === editingId.value) as (School & { isActive?: boolean }) | undefined
+    const body = { name, grades, isActive: existing?.isActive ?? true }
+    const response = editingId.value
+      ? await patchItem<School>(`/schools/${editingId.value}`, body)
+      : await postItem<School>('/schools', body)
+    if (editingId.value) {
+      const index = schools.value.findIndex(item => item.id === editingId.value)
+      if (index >= 0) schools.value[index] = response.data
+    } else {
+      schools.value.push(response.data)
+      selectedSchoolId.value = response.data.id
+    }
+    modalOpen.value = false
+    toast.add({ title: editingId.value ? 'School updated' : 'School created', color: 'success' })
+  } catch (error) {
+    toast.add({ title: 'Could not save school', description: apiErrorMessage(error, 'Please try again.'), color: 'error' })
+  } finally {
+    saving.value = false
   }
-  modalOpen.value = false
-  toast.add({ title: editingId.value ? 'School updated' : 'School created', color: 'success' })
 }
 
 function requestDelete(school: School) {
@@ -50,15 +64,24 @@ function requestDelete(school: School) {
   deleteOpen.value = true
 }
 
-function remove() {
+async function remove() {
   if (!deleting.value) return
-  if (schools.value.length <= 1) {
-    toast.add({ title: 'Keep at least one school', description: 'Create another school before deleting this one.', color: 'error' })
-    return
+  deletingSchool.value = true
+  try {
+    const deletedId = deleting.value.id
+    await request(`/schools/${deletedId}`, { method: 'DELETE' })
+    if (selectedSchoolId.value === deletedId)
+      selectedSchoolId.value = undefined
+    schools.value = schools.value.filter(item => item.id !== deletedId)
+    selectedSchoolId.value ||= schools.value[0]?.id
+    deleteOpen.value = false
+    deleting.value = null
+    toast.add({ title: 'School deleted', color: 'success' })
+  } catch (error) {
+    toast.add({ title: 'Could not delete school', description: apiErrorMessage(error, 'Please try again.'), color: 'error' })
+  } finally {
+    deletingSchool.value = false
   }
-  schools.value = schools.value.filter(item => item.id !== deleting.value?.id)
-  if (selectedSchoolId.value === deleting.value.id) selectedSchoolId.value = schools.value[0]?.id
-  toast.add({ title: 'School deleted', color: 'success' })
 }
 
 onMounted(async () => {
@@ -191,6 +214,7 @@ onMounted(async () => {
           <UButton
             form="school-form"
             type="submit"
+            :loading="saving"
             :label="editingId ? 'Save changes' : 'Create school'"
           />
         </div>
@@ -200,7 +224,7 @@ onMounted(async () => {
     <ConfirmDialog
       v-model="deleteOpen"
       title="Delete school?"
-      :description="`Delete ${deleting?.name || 'this school'} and its placeholder data?`"
+      :description="`Delete ${deleting?.name || 'this school'} and its related data?`"
       @confirm="remove"
     />
   </SettingsShell>

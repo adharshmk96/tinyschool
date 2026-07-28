@@ -5,6 +5,7 @@ definePageMeta({ layout: 'dashboard' })
 useSeoMeta({ title: 'Academic years' })
 
 const toast = useToast()
+const { request } = useApi()
 const { academicYears, selectedYearId, load } = useSchoolContext()
 const deleteOpen = ref(false)
 const deleting = ref<AcademicYear | null>(null)
@@ -14,13 +15,25 @@ function requestDelete(year: AcademicYear) {
   deleteOpen.value = true
 }
 
-function remove() {
+async function remove() {
   if (!deleting.value) return
-  academicYears.value = academicYears.value.filter(item => item.id !== deleting.value?.id)
-  if (selectedYearId.value === deleting.value.id) {
-    selectedYearId.value = academicYears.value.find(item => item.isCurrent)?.id || academicYears.value[0]?.id
+  const deletedId = deleting.value.id
+  try {
+    await request(`/academic-years/${deletedId}`, { method: 'DELETE' })
+    academicYears.value = academicYears.value.filter(item => item.id !== deletedId)
+    if (selectedYearId.value === deletedId) {
+      selectedYearId.value = academicYears.value.find(item => item.isCurrent)?.id || academicYears.value[0]?.id
+    }
+    deleting.value = null
+    toast.add({ title: 'Academic year deleted', color: 'success' })
+  } catch (error) {
+    deleteOpen.value = true
+    toast.add({
+      title: 'Could not delete academic year',
+      description: apiErrorMessage(error, 'Please try again.'),
+      color: 'error'
+    })
   }
-  toast.add({ title: 'Academic year deleted', color: 'success' })
 }
 
 onMounted(async () => {
@@ -116,7 +129,7 @@ onMounted(async () => {
     <ConfirmDialog
       v-model="deleteOpen"
       title="Delete academic year?"
-      :description="`Delete ${deleting?.name || 'this academic year'} and its placeholder calendar?`"
+      :description="`Delete ${deleting?.name || 'this academic year'} and its calendar?`"
       @confirm="remove"
     />
   </SettingsShell>

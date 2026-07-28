@@ -83,6 +83,7 @@ start_service \
   env \
     GOCACHE="${RUN_DIR}/go-cache" \
     TINYSCHOOL_API_ADDRESS="${API_HOST}:${API_PORT}" \
+    TINYSCHOOL_DB_PATH="${RUN_DIR}/tinyschool.db" \
     go run .
 
 start_service \

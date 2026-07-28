@@ -25,18 +25,30 @@ onMounted(() => {
       { key: 'totalScore', label: 'Total score' },
       { key: 'markedCount', label: 'Marked' }
     ]"
+    :edit-fields="[
+      { key: 'name', label: 'Name' },
+      { key: 'type', label: 'Type' },
+      { key: 'examDate', label: 'Exam date', type: 'date' },
+      { key: 'totalScore', label: 'Total score', type: 'number' }
+    ]"
     :tabs="[
       { label: 'Performance', value: 'performance', icon: 'i-lucide-chart-no-axes-combined' },
       { label: 'Students', value: 'students', icon: 'i-lucide-users' }
     ]"
   >
-    <template #default="{ item }">
+    <template #default="{ item, refresh }">
       <DomainPerformancePanel
         v-if="activeTab === 'performance'"
         subject="Scores"
         :data="item.performance"
       />
-      <DomainScoreList v-else kind="exam" :items="item.students" :total-score="Number(item.totalScore || 100)" />
+      <DomainScoreList
+        v-else
+        kind="exam"
+        :items="item.students"
+        :total-score="Number(item.totalScore || 100)"
+        @changed="refresh"
+      />
     </template>
   </DomainDetailPage>
 </template>

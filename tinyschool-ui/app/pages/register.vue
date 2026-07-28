@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const toast = useToast()
+const { postItem } = useApi()
 const pending = ref(false)
 const form = reactive({
   name: '',
@@ -24,10 +25,24 @@ async function submit() {
   }
   pending.value = true
   try {
-    await new Promise(resolve => setTimeout(resolve, 350))
-    useCookie('tiny-school-session', { sameSite: 'lax' }).value = 'local-placeholder-session'
+    await postItem('/auth/register', {
+      name: form.name.trim(),
+      email: form.email.trim(),
+      password: form.password,
+      schoolName: form.school.trim()
+    })
+    useCookie('tiny-school-authenticated', {
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24
+    }).value = 'true'
     toast.add({ title: 'Your workspace is ready', color: 'success' })
     await navigateTo('/dashboard')
+  } catch (error) {
+    toast.add({
+      title: 'Could not create account',
+      description: apiErrorMessage(error, 'Check your details and try again.'),
+      color: 'error'
+    })
   } finally {
     pending.value = false
   }

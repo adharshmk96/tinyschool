@@ -16,8 +16,13 @@ definePageMeta({ layout: 'dashboard' })
       { key: 'completion', label: 'Completion' },
       { key: 'class.name', label: 'Class' }
     ]"
+    :edit-fields="[
+      { key: 'name', label: 'Name' },
+      { key: 'dueDate', label: 'Due date', type: 'date' },
+      { key: 'totalScore', label: 'Total score', type: 'number' }
+    ]"
   >
-    <template #default="{ item }">
+    <template #default="{ item, refresh }">
       <section>
         <div class="mb-5 flex items-start gap-3">
           <span class="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
@@ -39,6 +44,7 @@ definePageMeta({ layout: 'dashboard' })
           kind="assignment"
           :items="item.assignees"
           :total-score="Number(item.totalScore || 100)"
+          @changed="refresh"
         />
       </section>
     </template>
