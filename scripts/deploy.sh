@@ -30,7 +30,10 @@ command -v curl >/dev/null || fail "curl is required"
 [[ "${DEPLOY_DOMAIN}" =~ ^[a-zA-Z0-9.-]+$ ]] || fail "DEPLOY_DOMAIN contains unsupported characters"
 [[ "${RELEASE_ID}" =~ ^[a-zA-Z0-9._-]+$ ]] || fail "release ID contains unsupported characters"
 
-SSH=(ssh -o BatchMode=yes -o ConnectTimeout=10)
+# ServerAliveInterval keeps the TCP session alive through intermediate NAT while
+# a long, silent remote build runs; without it the connection is dropped and ssh
+# exits 255 with "client_loop: send disconnect: Broken pipe".
+SSH=(ssh -o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=30 -o ServerAliveCountMax=20)
 if [[ -n "${DEPLOY_SSH_KEY}" ]]; then
   [[ -f "${DEPLOY_SSH_KEY}" ]] || fail "DEPLOY_SSH_KEY does not exist"
   SSH+=(-o IdentitiesOnly=yes -i "${DEPLOY_SSH_KEY}")
@@ -73,7 +76,7 @@ deploy_path="$2"
 domain="$3"
 
 cd "${release_path}/deploy"
-DOMAIN="${domain}" docker compose build --quiet
+DOMAIN="${domain}" docker compose build --progress=plain
 DOMAIN="${domain}" docker compose up -d --no-build --remove-orphans
 ln -sfn "${release_path}" "${deploy_path}/current"
 REMOTE

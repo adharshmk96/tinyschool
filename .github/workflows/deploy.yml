@@ -39,7 +39,20 @@ jobs:
           }
           echo "Deployment key fingerprint:"
           ssh-keygen -lf ~/.ssh/deploy_key
-          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+          # ssh-keyscan intermittently returns nothing (exit 1) from runners;
+          # retry rather than failing the whole deploy on a transient blip.
+          for attempt in 1 2 3 4 5; do
+            if ssh-keyscan -T 15 -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts && \
+               grep -q . ~/.ssh/known_hosts; then
+              break
+            fi
+            echo "ssh-keyscan attempt $attempt failed; retrying"
+            sleep 5
+            [ "$attempt" -eq 5 ] && {
+              echo "::error::could not scan host key for $DEPLOY_HOST"
+              exit 1
+            }
+          done
           ssh \
             -o BatchMode=yes \
             -o IdentitiesOnly=yes \
