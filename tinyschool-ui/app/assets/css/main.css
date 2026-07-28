@@ -1,0 +1,58 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+@theme static {
+  --font-sans: system-ui, sans-serif;
+}
+
+:root {
+  --app-sidebar: 17rem;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-width: 320px;
+  background: var(--ui-bg);
+  color: var(--ui-text);
+}
+
+.app-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--ui-border) 45%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--ui-border) 45%, transparent) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.page-shell {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 90rem;
+  padding: 1.25rem;
+  padding-bottom: 3rem;
+}
+
+.content-section {
+  margin-top: 2rem;
+}
+
+.content-stack {
+  display: grid;
+  gap: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .page-shell {
+    padding: 2rem;
+    padding-bottom: 4rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .page-shell {
+    padding: 2.5rem;
+    padding-bottom: 5rem;
+  }
+}
