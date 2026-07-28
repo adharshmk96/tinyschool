@@ -43,14 +43,14 @@ const performance = computed(() => {
           </h2>
         </div>
         <p class="mt-2 text-sm leading-6 text-muted">
-          Placeholder analytics showing how this tab will look with live scoring data.
+          Current-year scores, completion and progress over time.
         </p>
       </div>
       <UBadge
-        label="Preview data"
+        label="Current year"
         color="neutral"
         variant="subtle"
-        icon="i-lucide-sparkles"
+        icon="i-lucide-calendar-check"
         class="self-start"
       />
     </div>
@@ -98,7 +98,7 @@ const performance = computed(() => {
           {{ performance.standing }}
         </p>
         <p class="mt-3 text-sm text-muted">
-          Placeholder analytics from the current academic year.
+          Based on marked work from the current academic year.
         </p>
       </UCard>
       <UCard class="lg:col-span-3">

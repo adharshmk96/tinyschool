@@ -5,7 +5,7 @@ Nuxt UI dashboard backed by a persistent Go, GORM, and SQLite API.
 ## Run locally
 
 ```bash
-./run-local.sh
+./scripts/run-local.sh
 ```
 
 Open `http://127.0.0.1:3000`. Logs and PID files are written to
@@ -14,13 +14,13 @@ Open `http://127.0.0.1:3000`. Logs and PID files are written to
 Override occupied ports when needed:
 
 ```bash
-TINYSCHOOL_API_PORT=8180 TINYSCHOOL_UI_PORT=3100 ./run-local.sh
+TINYSCHOOL_API_PORT=8180 TINYSCHOOL_UI_PORT=3100 ./scripts/run-local.sh
 ```
 
 Stop both servers with:
 
 ```bash
-./stop-local.sh
+./scripts/stop-local.sh
 ```
 
 Local data is stored in `.runs/local/tinyschool.db`. A new database starts
@@ -68,7 +68,7 @@ file and automatic HTTPS.
 
 ```bash
 ssh-copy-id root@147.93.97.228
-./deploy.sh
+./scripts/deploy.sh
 ```
 
 Default URL: `https://tinyschool.147.93.97.228.nip.io`

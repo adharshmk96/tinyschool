@@ -1,0 +1,11 @@
+{
+  "name": "tinyschool-screenshots",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "screenshots": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.2"
+  }
+}

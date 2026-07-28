@@ -2,6 +2,10 @@
 export default defineNuxtConfig({
   modules: ['@nuxt/eslint', '@nuxt/ui'],
 
+  // Browser-level API mocks only see client requests. Keep production SSR
+  // unchanged and opt into SPA rendering only for the screenshot harness.
+  ssr: import.meta.env.NUXT_PLAYWRIGHT_SPA !== 'true',
+
   devtools: {
     enabled: false
   },

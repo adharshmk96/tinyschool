@@ -3,7 +3,8 @@ name: Deploy
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    tags:
+      - 'v*.*.*'
 
 concurrency:
   group: production
@@ -53,4 +54,4 @@ jobs:
           DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/tinyschool' }}
           DEPLOY_DOMAIN: ${{ vars.DEPLOY_DOMAIN || 'tinyschool.147.93.97.228.nip.io' }}
           DEPLOY_SSH_KEY: /home/runner/.ssh/deploy_key
-        run: ./deploy.sh
+        run: ./scripts/deploy.sh
