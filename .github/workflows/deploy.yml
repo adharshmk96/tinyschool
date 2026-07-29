@@ -27,6 +27,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      app_version: ${{ steps.meta.outputs.version }}
     strategy:
       matrix:
         include:
@@ -36,6 +38,19 @@ jobs:
             dockerfile: deploy/api.Dockerfile
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Resolve app version
+        id: meta
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION="$(git describe --tags --always 2>/dev/null || echo "${GITHUB_SHA:0:7}")"
+          fi
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "Deploying app version: ${VERSION}"
 
       - uses: docker/setup-buildx-action@v3
 
@@ -45,13 +60,25 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Docker metadata
+        id: docker_meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}-${{ matrix.name }}
+          tags: |
+            type=raw,value=${{ github.sha }}
+            type=raw,value=${{ steps.meta.outputs.version }}
+            type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
+
       - name: Build and push ${{ matrix.name }}
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ${{ matrix.dockerfile }}
           push: true
-          tags: ${{ env.IMAGE_PREFIX }}-${{ matrix.name }}:${{ github.sha }}
+          tags: ${{ steps.docker_meta.outputs.tags }}
+          build-args: |
+            APP_VERSION=${{ steps.meta.outputs.version }}
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,scope=${{ matrix.name }},mode=max
 
@@ -119,3 +146,26 @@ jobs:
           REGISTRY_USER: ${{ github.actor }}
           REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./scripts/deploy.sh
+
+  # Release workflow usually creates the GH release first; this is a safety net
+  # when someone pushes a tag from the CLI without using Release.
+  github-release:
+    if: github.ref_type == 'tag'
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Ensure GitHub Release exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          if gh release view "${VERSION}" >/dev/null 2>&1; then
+            echo "Release ${VERSION} already exists"
+            exit 0
+          fi
+          gh release create "${VERSION}" --title "${VERSION}" --generate-notes --verify-tag

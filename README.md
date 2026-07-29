@@ -82,4 +82,24 @@ between releases.
 Add the private key as the `DEPLOY_SSH_PRIVATE_KEY` repository secret.
 Optional repository variables use the same `DEPLOY_*` names above.
 
-The workflow deploys on pushes to `main` and can also be run manually.
+#### Releases
+
+Versions are git tags (`vX.Y.Z`). The tag is baked into the UI and shown as a
+subtle footer on every page.
+
+```text
+tag v0.1.0 ──► Deploy workflow ──► images + production ──► footer shows v0.1.0
+```
+
+Create a release either way:
+
+1. **From GitHub** — Actions → **Release** → Run workflow → enter `v0.1.0`
+2. **From git** — tag and push yourself:
+
+```bash
+git tag -a v0.1.0 -m "Release v0.1.0"
+git push origin v0.1.0
+```
+
+Pushing a `v*.*.*` tag runs **Deploy**. Manual **Deploy** (workflow_dispatch)
+redeploys the current commit using `git describe` for the footer version.

@@ -93,6 +93,7 @@ start_service \
   "${UI_PID_FILE}" \
   env \
     NUXT_PUBLIC_API_BASE="http://${API_HOST}:${API_PORT}/api/v1" \
+    NUXT_PUBLIC_APP_VERSION="${TINYSCHOOL_APP_VERSION:-$(git -C "${ROOT_DIR}" describe --tags --always 2>/dev/null || echo dev)}" \
     bun run dev --host "${UI_HOST}" --port "${UI_PORT}"
 
 echo "Tiny School is starting at http://${UI_HOST}:${UI_PORT}"

@@ -1,0 +1,78 @@
+name: Release
+
+# Creates an annotated git tag. Pushing the tag triggers Deploy, which bakes
+# the version into the UI and rolls out production.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Semver tag to create (e.g. v0.1.0)'
+        required: true
+        type: string
+      notes:
+        description: 'Optional release notes (otherwise auto-generated)'
+        required: false
+        type: string
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.validate.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Validate version
+        id: validate
+        env:
+          RAW: ${{ inputs.version }}
+        run: |
+          VERSION="${RAW#"${RAW%%[![:space:]]*}"}"
+          VERSION="${VERSION%"${VERSION##*[![:space:]]}"}"
+          [[ "${VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+            echo "::error::version must look like v1.2.3 (got '${VERSION}')"
+            exit 1
+          }
+          if git rev-parse -q --verify "refs/tags/${VERSION}" >/dev/null; then
+            echo "::error::tag ${VERSION} already exists"
+            exit 1
+          fi
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+
+      - name: Create and push annotated tag
+        env:
+          VERSION: ${{ steps.validate.outputs.version }}
+          NOTES: ${{ inputs.notes }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          MESSAGE="Release ${VERSION}"
+          if [[ -n "${NOTES}" ]]; then
+            MESSAGE="${MESSAGE}
+
+          ${NOTES}"
+          fi
+          git tag -a "${VERSION}" -m "${MESSAGE}"
+          git push origin "refs/tags/${VERSION}"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.validate.outputs.version }}
+          NOTES: ${{ inputs.notes }}
+        run: |
+          if [[ -n "${NOTES}" ]]; then
+            gh release create "${VERSION}" --title "${VERSION}" --notes "${NOTES}"
+          else
+            gh release create "${VERSION}" --title "${VERSION}" --generate-notes
+          fi

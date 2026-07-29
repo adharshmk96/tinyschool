@@ -18,7 +18,9 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      apiBase: 'http://localhost:8080/api/v1'
+      apiBase: 'http://localhost:8080/api/v1',
+      // Overridden at build/runtime by NUXT_PUBLIC_APP_VERSION (git tag in CI).
+      appVersion: 'dev'
     }
   },
 

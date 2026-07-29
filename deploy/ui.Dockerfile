@@ -1,5 +1,8 @@
 FROM oven/bun:1.3.13 AS build
 
+ARG APP_VERSION=dev
+ENV NUXT_PUBLIC_APP_VERSION=$APP_VERSION
+
 WORKDIR /app
 COPY tinyschool-ui/package.json tinyschool-ui/bun.lock ./
 RUN bun install --no-save
