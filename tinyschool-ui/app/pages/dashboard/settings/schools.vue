@@ -12,27 +12,54 @@ const modalOpen = ref(false)
 const deleteOpen = ref(false)
 const editingId = ref<string | null>(null)
 const deleting = ref<School | null>(null)
-const form = reactive({ name: '', grades: '' })
+const form = reactive({ name: '', grades: [] as string[], gradesInUse: [] as string[], newGrade: '' })
 const saving = ref(false)
 const deletingSchool = ref(false)
 
 function openCreate() {
   editingId.value = null
   form.name = ''
-  form.grades = ''
+  form.grades = []
+  form.gradesInUse = []
+  form.newGrade = ''
   modalOpen.value = true
 }
 
 function openEdit(school: School) {
   editingId.value = school.id
   form.name = school.name
-  form.grades = school.grades.join(', ')
+  form.grades = [...school.grades]
+  form.gradesInUse = [...(school.gradesInUse || [])]
+  form.newGrade = ''
   modalOpen.value = true
+}
+
+function gradeInUse(grade: string) {
+  return form.gradesInUse.some(item => item.toLowerCase() === grade.toLowerCase())
+}
+
+function addGrade() {
+  const grade = form.newGrade.trim()
+  if (!grade) return
+  if (form.grades.some(item => item.toLowerCase() === grade.toLowerCase())) {
+    toast.add({ title: 'Grade already added', color: 'error' })
+    return
+  }
+  form.grades.push(grade)
+  form.newGrade = ''
+}
+
+function removeGrade(grade: string) {
+  if (gradeInUse(grade)) {
+    toast.add({ title: 'Grade is linked', description: 'Remove linked classes or students before deleting this grade.', color: 'error' })
+    return
+  }
+  form.grades = form.grades.filter(item => item !== grade)
 }
 
 async function save() {
   const name = form.name.trim()
-  const grades = [...new Set(form.grades.split(',').map(item => item.trim()).filter(Boolean))]
+  const grades = form.grades.map(item => item.trim()).filter(Boolean)
   if (!name || !grades.length) {
     toast.add({ title: 'School name and grades are required', color: 'error' })
     return
@@ -176,7 +203,7 @@ onMounted(async () => {
     <UModal
       v-model:open="modalOpen"
       :title="editingId ? 'Edit school' : 'Create school'"
-      description="Add the school name and comma-separated grades."
+      description="Add the school name and grades taught."
     >
       <template #body>
         <form
@@ -197,14 +224,49 @@ onMounted(async () => {
           </UFormField>
           <UFormField
             label="Grades"
-            description="Separate each grade with a comma."
+            description="Linked grades cannot be removed while classes or students use them."
             required
           >
-            <UInput
-              v-model="form.grades"
-              class="w-full"
-              placeholder="Grade 6, Grade 7, Grade 8"
-            />
+            <div class="space-y-3">
+              <div
+                v-if="form.grades.length"
+                class="flex flex-wrap gap-2"
+              >
+                <div
+                  v-for="grade in form.grades"
+                  :key="grade"
+                  class="inline-flex items-center gap-1 rounded-md bg-elevated px-2.5 py-1 text-sm"
+                >
+                  <span>{{ grade }}</span>
+                  <UButton
+                    :icon="gradeInUse(grade) ? 'i-lucide-lock' : 'i-lucide-x'"
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    class="-me-1"
+                    :disabled="gradeInUse(grade)"
+                    :aria-label="gradeInUse(grade) ? `${grade} is linked` : `Remove ${grade}`"
+                    @click.prevent="removeGrade(grade)"
+                  />
+                </div>
+              </div>
+              <div class="flex gap-2">
+                <UInput
+                  v-model="form.newGrade"
+                  class="w-full"
+                  placeholder="Grade 6"
+                  @keydown.enter.prevent="addGrade"
+                />
+                <UButton
+                  type="button"
+                  icon="i-lucide-plus"
+                  label="Add"
+                  color="neutral"
+                  variant="outline"
+                  @click="addGrade"
+                />
+              </div>
+            </div>
           </UFormField>
         </form>
       </template>

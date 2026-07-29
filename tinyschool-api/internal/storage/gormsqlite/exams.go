@@ -20,6 +20,9 @@ func (s *Store) ListExams(ctx context.Context, options storage.ListOptions) ([]m
 	if options.AcademicYearID != "" {
 		query = query.Where("exams.academic_year_id = ?", options.AcademicYearID)
 	}
+	if options.Grade != "" {
+		query = query.Where("EXISTS (SELECT 1 FROM classes c WHERE c.id = exams.class_id AND LOWER(c.grade) = LOWER(?))", options.Grade)
+	}
 	if options.Search != "" {
 		p := contains(options.Search)
 		query = query.Where("LOWER(exams.name) LIKE ? OR LOWER(exams.type) LIKE ? OR EXISTS (SELECT 1 FROM classes c WHERE c.id = exams.class_id AND LOWER(c.name) LIKE ?)", p, p, p)

@@ -15,6 +15,9 @@ func (s *Store) ListClasses(ctx context.Context, options storage.ListOptions) ([
 	if options.AcademicYearID != "" {
 		query = query.Where("classes.academic_year_id = ?", options.AcademicYearID)
 	}
+	if options.Grade != "" {
+		query = query.Where("LOWER(classes.grade) = LOWER(?)", options.Grade)
+	}
 	if options.Search != "" {
 		p := contains(options.Search)
 		query = query.Where("LOWER(name) LIKE ? OR LOWER(subject) LIKE ? OR LOWER(grade) LIKE ? OR LOWER(description) LIKE ?", p, p, p, p)

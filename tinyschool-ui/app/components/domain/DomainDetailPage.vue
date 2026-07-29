@@ -13,6 +13,7 @@ const props = defineProps<{
   editFields?: Array<{ key: string, label: string, type?: string, options?: string[] }>
   tabs?: Array<{ label: string, value: string, icon: string }>
   activeTab?: string
+  gradeFilter?: boolean
 }>()
 
 const route = useRoute()
@@ -23,8 +24,14 @@ const editOpen = ref(false)
 const saving = ref(false)
 const form = reactive<Record<string, string>>({})
 const gradeRows = ref<StudentGrade[]>([])
+const grade = ref(props.gradeFilter && route.query.grade ? String(route.query.grade) : undefined)
 const id = computed(() => String(route.params.id))
-const apiPath = computed(() => `${props.endpoint.replace(/^\/api\/v1/, '')}/${id.value}`)
+const apiPath = computed(() => {
+  const base = `${props.endpoint.replace(/^\/api\/v1/, '')}/${id.value}`
+  if (!props.gradeFilter || !grade.value)
+    return base
+  return `${base}?grade=${encodeURIComponent(grade.value)}`
+})
 const { data, status, error, refresh } = await useAsyncData(
   `domain-detail-${props.endpoint}-${id.value}`,
   () => request<{ data: Item }>(apiPath.value),
@@ -32,6 +39,17 @@ const { data, status, error, refresh } = await useAsyncData(
 )
 const item = computed<Item>(() => data.value?.data ?? {})
 const displayTitle = computed(() => String(item.value.name ?? item.value.fullName ?? (`${item.value.firstName ?? ''} ${item.value.lastName ?? ''}`.trim() || props.title)))
+
+watch(grade, (value) => {
+  if (!props.gradeFilter)
+    return
+  const query = { ...route.query }
+  if (value)
+    query.grade = value
+  else
+    delete query.grade
+  router.replace({ query })
+})
 
 function rawValue(key: string) {
   return key.split('.').reduce<unknown>((current, part) => {
@@ -49,7 +67,8 @@ function value(key: string) {
 }
 
 function setTab(tab: string) {
-  router.push(`${props.backTo}/${id.value}/${tab}`)
+  const query = props.gradeFilter && grade.value ? { grade: grade.value } : undefined
+  router.push({ path: `${props.backTo}/${id.value}/${tab}`, query })
 }
 
 function openEdit() {
@@ -156,14 +175,21 @@ async function saveEdit() {
 
     <div
       v-if="tabs?.length"
-      class="mt-7 overflow-x-auto border-b border-default pb-px"
+      class="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-default pb-px"
     >
-      <UTabs
-        :model-value="activeTab"
-        :items="tabs"
-        value-key="value"
-        :content="false"
-        @update:model-value="setTab(String($event))"
+      <div class="overflow-x-auto">
+        <UTabs
+          :model-value="activeTab"
+          :items="tabs"
+          value-key="value"
+          :content="false"
+          @update:model-value="setTab(String($event))"
+        />
+      </div>
+      <GradeFilterMenu
+        v-if="gradeFilter"
+        v-model="grade"
+        class="shrink-0"
       />
     </div>
 

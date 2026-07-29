@@ -16,6 +16,7 @@ var (
 type ListOptions struct {
 	Search, Sort, Order string
 	AcademicYearID      string
+	Grade               string
 	Page, PageSize      int
 }
 
@@ -45,6 +46,7 @@ type Storage interface {
 
 	ListSchools(context.Context, ListOptions) ([]model.School, int64, error)
 	School(context.Context, string) (model.School, error)
+	SchoolGradesInUse(context.Context, string) ([]string, error)
 	CreateSchool(context.Context, model.School) (model.School, error)
 	UpdateSchool(context.Context, model.School) (model.School, error)
 	DeleteSchool(context.Context, string) error

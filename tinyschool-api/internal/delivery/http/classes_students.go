@@ -20,7 +20,7 @@ func (h *Handler) listClasses(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getClass(w http.ResponseWriter, r *http.Request) {
-	result, err := h.app.GetClass(r.Context(), r.PathValue("id"))
+	result, err := h.app.GetClassFiltered(r.Context(), r.PathValue("id"), r.URL.Query().Get("grade"))
 	if err != nil {
 		writeServiceError(h.logger, w, r, err)
 		return

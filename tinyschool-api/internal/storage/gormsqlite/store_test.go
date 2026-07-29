@@ -221,3 +221,61 @@ func TestClearUserDataDoesNotDeleteAnotherUsersData(t *testing.T) {
 		t.Fatalf("other user's data changed: total=%d schools=%+v", total, schools)
 	}
 }
+
+func TestSchoolGradesInUseAndListGradeFilter(t *testing.T) {
+	ctx := tenancy.WithUserID(context.Background(), "usr_001")
+	store, err := Open(filepath.Join(t.TempDir(), "school.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	if err := store.AutoMigrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Seed(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	used, err := store.SchoolGradesInUse(ctx, "sch_001")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(used) == 0 {
+		t.Fatal("expected seeded grades to be in use")
+	}
+
+	classes, total, err := store.ListClasses(ctx, storage.ListOptions{
+		Page: 1, PageSize: 20, AcademicYearID: "ay_2026", Grade: "Grade 7",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if total != 2 || len(classes) != 2 {
+		t.Fatalf("grade 7 classes total=%d len=%d, want 2", total, len(classes))
+	}
+	for _, class := range classes {
+		if class.Grade != "Grade 7" {
+			t.Fatalf("unexpected class grade %q", class.Grade)
+		}
+	}
+
+	assignments, assignmentTotal, err := store.ListAssignments(ctx, storage.ListOptions{
+		Page: 1, PageSize: 20, AcademicYearID: "ay_2026", Grade: "Grade 6",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if assignmentTotal < 1 || len(assignments) < 1 {
+		t.Fatal("expected grade 6 assignments")
+	}
+
+	exams, examTotal, err := store.ListExams(ctx, storage.ListOptions{
+		Page: 1, PageSize: 20, AcademicYearID: "ay_2026", Grade: "Grade 7",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if examTotal < 1 || len(exams) < 1 {
+		t.Fatalf("expected grade 7 exams, got total=%d", examTotal)
+	}
+}

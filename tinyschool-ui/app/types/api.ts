@@ -48,6 +48,7 @@ export interface School {
   id: string
   name: string
   grades: string[]
+  gradesInUse?: string[]
 }
 
 export interface StudentGrade {

@@ -18,6 +18,7 @@ onMounted(() => {
     back-to="/dashboard/exams"
     back-label="Exams"
     icon="i-lucide-file-check-2"
+    grade-filter
     :active-tab="activeTab"
     :fields="[
       { key: 'class.name', label: 'Class' },

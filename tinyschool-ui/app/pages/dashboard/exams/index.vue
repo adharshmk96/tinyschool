@@ -11,6 +11,7 @@ definePageMeta({ layout: 'dashboard' })
     detail-base="/dashboard/exams"
     description="Schedule examinations and track marking progress by class."
     academic-year-filter
+    grade-filter
     :sort-options="[
       { label: 'Exam date', value: 'examDate' },
       { label: 'Name', value: 'name' },

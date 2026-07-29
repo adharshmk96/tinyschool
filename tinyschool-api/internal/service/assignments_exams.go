@@ -22,17 +22,21 @@ func (a *App) ListAssignments(ctx context.Context, input dto.ListOptions) (dto.P
 	}
 	result := make([]dto.Assignment, len(items))
 	for index := range items {
-		result[index] = assignmentDTO(items[index], false)
+		result[index] = assignmentDTO(items[index], false, "")
 	}
 	return dto.Page[dto.Assignment]{Items: result, Total: int(total), Page: options.Page, PageSize: options.PageSize}, nil
 }
 
 func (a *App) GetAssignment(ctx context.Context, id string) (dto.Assignment, error) {
+	return a.GetAssignmentFiltered(ctx, id, "")
+}
+
+func (a *App) GetAssignmentFiltered(ctx context.Context, id, grade string) (dto.Assignment, error) {
 	item, err := a.storage.Assignment(ctx, strings.TrimSpace(id))
 	if err != nil {
 		return dto.Assignment{}, translate(err, "assignment")
 	}
-	return assignmentDTO(item, true), nil
+	return assignmentDTO(item, true, strings.TrimSpace(grade)), nil
 }
 
 func (a *App) CreateAssignment(ctx context.Context, input dto.AssignmentRequest) (dto.Assignment, error) {
@@ -48,7 +52,7 @@ func (a *App) CreateAssignment(ctx context.Context, input dto.AssignmentRequest)
 	if err != nil {
 		return dto.Assignment{}, translate(err, "assignment")
 	}
-	return assignmentDTO(created, true), nil
+	return assignmentDTO(created, true, ""), nil
 }
 
 func (a *App) UpdateAssignment(ctx context.Context, id string, input dto.UpdateAssignmentRequest) (dto.Assignment, error) {
@@ -94,7 +98,7 @@ func (a *App) UpdateAssignment(ctx context.Context, id string, input dto.UpdateA
 	if err != nil {
 		return dto.Assignment{}, translate(err, "assignment")
 	}
-	return assignmentDTO(updated, true), nil
+	return assignmentDTO(updated, true, ""), nil
 }
 
 func (a *App) DeleteAssignment(ctx context.Context, id string) error {
@@ -126,7 +130,7 @@ func (a *App) SetAssignmentScore(ctx context.Context, assignmentID, studentID st
 	if err != nil {
 		return dto.Assignment{}, translate(err, "assignment")
 	}
-	return assignmentDTO(updated, true), nil
+	return assignmentDTO(updated, true, ""), nil
 }
 
 func (a *App) ClearAssignmentScore(ctx context.Context, assignmentID, studentID string) error {
@@ -238,17 +242,21 @@ func (a *App) ListExams(ctx context.Context, input dto.ListOptions) (dto.Page[dt
 	}
 	result := make([]dto.Exam, len(items))
 	for index := range items {
-		result[index] = examDTO(items[index], false)
+		result[index] = examDTO(items[index], false, "")
 	}
 	return dto.Page[dto.Exam]{Items: result, Total: int(total), Page: options.Page, PageSize: options.PageSize}, nil
 }
 
 func (a *App) GetExam(ctx context.Context, id string) (dto.Exam, error) {
+	return a.GetExamFiltered(ctx, id, "")
+}
+
+func (a *App) GetExamFiltered(ctx context.Context, id, grade string) (dto.Exam, error) {
 	item, err := a.storage.Exam(ctx, strings.TrimSpace(id))
 	if err != nil {
 		return dto.Exam{}, translate(err, "exam")
 	}
-	return examDTO(item, true), nil
+	return examDTO(item, true, strings.TrimSpace(grade)), nil
 }
 
 func (a *App) CreateExam(ctx context.Context, input dto.ExamRequest) (dto.Exam, error) {
@@ -264,7 +272,7 @@ func (a *App) CreateExam(ctx context.Context, input dto.ExamRequest) (dto.Exam, 
 	if err != nil {
 		return dto.Exam{}, translate(err, "exam")
 	}
-	return examDTO(created, true), nil
+	return examDTO(created, true, ""), nil
 }
 
 func (a *App) UpdateExam(ctx context.Context, id string, input dto.UpdateExamRequest) (dto.Exam, error) {
@@ -302,7 +310,7 @@ func (a *App) UpdateExam(ctx context.Context, id string, input dto.UpdateExamReq
 	if err != nil {
 		return dto.Exam{}, translate(err, "exam")
 	}
-	return examDTO(updated, true), nil
+	return examDTO(updated, true, ""), nil
 }
 
 func (a *App) DeleteExam(ctx context.Context, id string) error {
@@ -334,7 +342,7 @@ func (a *App) SetExamScore(ctx context.Context, examID, studentID string, input 
 	if err != nil {
 		return dto.Exam{}, translate(err, "exam")
 	}
-	return examDTO(updated, true), nil
+	return examDTO(updated, true, ""), nil
 }
 
 func (a *App) ClearExamScore(ctx context.Context, examID, studentID string) error {

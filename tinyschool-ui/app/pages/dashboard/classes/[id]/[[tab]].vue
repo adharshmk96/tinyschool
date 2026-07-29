@@ -18,6 +18,7 @@ onMounted(() => {
     back-to="/dashboard/classes"
     back-label="My Classes"
     icon="i-lucide-presentation"
+    grade-filter
     :active-tab="activeTab"
     :fields="[
       { key: 'subject', label: 'Subject' },

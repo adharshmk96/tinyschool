@@ -20,8 +20,10 @@ type fakeStorage struct {
 	assignment  model.Assignment
 	student     model.Student
 	createdYear model.AcademicYear
+	gradesInUse []string
 	scoreWasSet bool
 	deleted     bool
+	updated     bool
 }
 
 func (f *fakeStorage) School(_ context.Context, id string) (model.School, error) {
@@ -29,6 +31,16 @@ func (f *fakeStorage) School(_ context.Context, id string) (model.School, error)
 		return model.School{}, storage.ErrNotFound
 	}
 	return f.school, nil
+}
+
+func (f *fakeStorage) SchoolGradesInUse(_ context.Context, _ string) ([]string, error) {
+	return append([]string(nil), f.gradesInUse...), nil
+}
+
+func (f *fakeStorage) UpdateSchool(_ context.Context, school model.School) (model.School, error) {
+	f.updated = true
+	f.school = school
+	return school, nil
 }
 
 func (f *fakeStorage) CreateAcademicYear(_ context.Context, value model.AcademicYear) (model.AcademicYear, error) {
@@ -216,5 +228,41 @@ func TestRefreshAllowsExpiredTokenWhileSessionActive(t *testing.T) {
 	}
 	if _, err := app.Authenticate(context.Background(), refreshed.Token); err != nil {
 		t.Fatalf("new token was not accepted: %v", err)
+	}
+}
+
+func TestUpdateSchoolRejectsRemovingLinkedGrade(t *testing.T) {
+	store := &fakeStorage{
+		school:      model.School{ID: "sch_1", Name: "Academy", Grades: []string{"Grade 6", "Grade 7", "Grade 8"}, IsActive: true},
+		gradesInUse: []string{"Grade 7"},
+	}
+	_, err := New(store).UpdateSchool(context.Background(), "sch_1", dto.SchoolRequest{
+		Name: "Academy", Grades: []string{"Grade 6", "Grade 8"}, IsActive: true,
+	})
+	if !errors.Is(err, ErrConflict) {
+		t.Fatalf("expected conflict, got %v", err)
+	}
+	if store.updated {
+		t.Fatal("storage update occurred for a linked grade removal")
+	}
+}
+
+func TestAssignmentDetailFiltersAssigneesByGrade(t *testing.T) {
+	store := &fakeStorage{assignment: model.Assignment{
+		ID: "asg_1", AcademicYearID: "ay_1", TotalScore: 20,
+		Students: []model.AssignmentStudent{
+			{Student: model.Student{ID: "stu_1", FirstName: "A", Grades: []model.StudentGrade{{AcademicYearID: "ay_1", Grade: "Grade 7", IsCurrent: true}}}},
+			{Student: model.Student{ID: "stu_2", FirstName: "B", Grades: []model.StudentGrade{{AcademicYearID: "ay_1", Grade: "Grade 6", IsCurrent: true}}}},
+		},
+	}}
+	result, err := New(store).GetAssignmentFiltered(context.Background(), "asg_1", "Grade 7")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Assignees) != 1 || result.Assignees[0].ID != "stu_1" {
+		t.Fatalf("expected one grade 7 assignee, got %+v", result.Assignees)
+	}
+	if result.Performance == nil || result.Performance.Total != 1 {
+		t.Fatalf("expected filtered performance total 1, got %+v", result.Performance)
 	}
 }

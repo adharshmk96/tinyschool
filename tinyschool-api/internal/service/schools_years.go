@@ -45,7 +45,10 @@ func (a *App) ListSchools(ctx context.Context, input dto.ListOptions) (dto.Page[
 	}
 	result := make([]dto.School, len(items))
 	for index := range items {
-		result[index] = schoolDTO(items[index])
+		result[index], err = a.schoolDTO(ctx, items[index])
+		if err != nil {
+			return dto.Page[dto.School]{}, err
+		}
 	}
 	return dto.Page[dto.School]{Items: result, Total: int(total), Page: options.Page, PageSize: options.PageSize}, nil
 }
@@ -55,7 +58,7 @@ func (a *App) GetSchool(ctx context.Context, id string) (dto.School, error) {
 	if err != nil {
 		return dto.School{}, translate(err, "school")
 	}
-	return schoolDTO(item), nil
+	return a.schoolDTO(ctx, item)
 }
 
 func (a *App) CreateSchool(ctx context.Context, input dto.SchoolRequest) (dto.School, error) {
@@ -71,22 +74,35 @@ func (a *App) CreateSchool(ctx context.Context, input dto.SchoolRequest) (dto.Sc
 	if err != nil {
 		return dto.School{}, translate(err, "school")
 	}
-	return schoolDTO(created), nil
+	return a.schoolDTO(ctx, created)
 }
 
 func (a *App) UpdateSchool(ctx context.Context, id string, input dto.SchoolRequest) (dto.School, error) {
-	if _, err := a.storage.School(ctx, strings.TrimSpace(id)); err != nil {
+	current, err := a.storage.School(ctx, strings.TrimSpace(id))
+	if err != nil {
 		return dto.School{}, translate(err, "school")
 	}
 	item, err := a.schoolFromInput(strings.TrimSpace(id), input)
 	if err != nil {
 		return dto.School{}, err
 	}
+	used, err := a.storage.SchoolGradesInUse(ctx, current.ID)
+	if err != nil {
+		return dto.School{}, translate(err, "school")
+	}
+	for _, grade := range current.Grades {
+		if containsGrade(item.Grades, grade) {
+			continue
+		}
+		if containsGrade(used, grade) {
+			return dto.School{}, conflict("grade \"" + grade + "\" cannot be removed because it is linked to classes or students")
+		}
+	}
 	updated, err := a.storage.UpdateSchool(ctx, item)
 	if err != nil {
 		return dto.School{}, translate(err, "school")
 	}
-	return schoolDTO(updated), nil
+	return a.schoolDTO(ctx, updated)
 }
 
 func (a *App) DeleteSchool(ctx context.Context, id string) error {
@@ -233,12 +249,22 @@ func (a *App) academicYearFromInput(id string, input dto.AcademicYearRequest) (m
 	}, nil
 }
 
-func schoolDTO(item model.School) dto.School {
+func (a *App) schoolDTO(ctx context.Context, item model.School) (dto.School, error) {
 	grades := append([]string(nil), item.Grades...)
 	if grades == nil {
 		grades = []string{}
 	}
-	return dto.School{ID: item.ID, Name: item.Name, Grades: grades, IsActive: item.IsActive}
+	used, err := a.storage.SchoolGradesInUse(ctx, item.ID)
+	if err != nil {
+		return dto.School{}, translate(err, "school")
+	}
+	inUse := make([]string, 0, len(grades))
+	for _, grade := range grades {
+		if containsGrade(used, grade) {
+			inUse = append(inUse, grade)
+		}
+	}
+	return dto.School{ID: item.ID, Name: item.Name, Grades: grades, GradesInUse: inUse, IsActive: item.IsActive}, nil
 }
 
 func academicYearDTO(item model.AcademicYear) dto.AcademicYear {

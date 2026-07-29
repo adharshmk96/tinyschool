@@ -14,6 +14,7 @@ const props = defineProps<{
   cardFields: Array<{ key: string, label: string }>
   sortOptions: Array<{ label: string, value: string }>
   academicYearFilter?: boolean
+  gradeFilter?: boolean
 }>()
 
 const route = useRoute()
@@ -33,6 +34,7 @@ const search = ref(String(route.query.search || ''))
 const sort = ref(String(route.query.sort || props.sortOptions[0]?.value || 'name'))
 const order = ref(route.query.order === 'asc' ? 'asc' : 'desc')
 const page = ref(Math.max(1, Number(route.query.page) || 1))
+const grade = ref(props.gradeFilter && route.query.grade ? String(route.query.grade) : undefined)
 const pageSize = 8
 // The sidebar selector is the only academic year switch in the app.
 const currentYearLabel = computed(() => {
@@ -46,6 +48,7 @@ const query = computed(() => ({
   sort: sort.value,
   order: order.value,
   academicYearId: props.academicYearFilter ? selectedYearId.value || undefined : undefined,
+  grade: props.gradeFilter ? (grade.value || undefined) : undefined,
   page: page.value,
   pageSize
 }))
@@ -89,10 +92,11 @@ const { data, status, error, refresh } = await useAsyncData(
 const items = computed(() => Array.isArray(data.value?.data) ? data.value.data : [])
 const total = computed(() => Number(data.value?.meta?.total ?? items.value.length))
 
-watch([search, sort, order, page, selectedYearId], () => {
+watch([search, sort, order, page, selectedYearId, grade], () => {
   router.replace({
     query: {
       ...(search.value ? { search: search.value } : {}),
+      ...(props.gradeFilter && grade.value ? { grade: grade.value } : {}),
       sort: sort.value,
       order: order.value,
       ...(page.value > 1 ? { page: String(page.value) } : {})
@@ -100,7 +104,7 @@ watch([search, sort, order, page, selectedYearId], () => {
   })
 })
 
-watch([search, sort, order, selectedYearId], () => {
+watch([search, sort, order, selectedYearId, grade], () => {
   page.value = 1
 })
 
@@ -291,7 +295,7 @@ async function remove() {
     </div>
 
     <UCard class="mt-8">
-      <div class="grid gap-3 md:grid-cols-[minmax(240px,1fr)_190px_auto]">
+      <div class="grid gap-3 md:grid-cols-[minmax(200px,1fr)_190px_auto_auto]">
         <UInput
           v-model="search"
           icon="i-lucide-search"
@@ -310,6 +314,10 @@ async function remove() {
           :icon="order === 'asc' ? 'i-lucide-arrow-up' : 'i-lucide-arrow-down'"
           :label="order === 'asc' ? 'Ascending' : 'Descending'"
           @click="order = order === 'asc' ? 'desc' : 'asc'"
+        />
+        <GradeFilterMenu
+          v-if="gradeFilter"
+          v-model="grade"
         />
       </div>
     </UCard>

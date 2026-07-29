@@ -3,6 +3,7 @@ package dto
 type ListOptions struct {
 	Search         string
 	AcademicYearID string
+	Grade          string
 	Sort           string
 	Order          string
 	Page           int
@@ -17,8 +18,9 @@ type Page[T any] struct {
 }
 
 type Reference struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Grade string `json:"grade,omitempty"`
 }
 
 type User struct {
@@ -96,10 +98,11 @@ type UpcomingItem struct {
 }
 
 type School struct {
-	ID       string   `json:"id"`
-	Name     string   `json:"name"`
-	Grades   []string `json:"grades"`
-	IsActive bool     `json:"isActive"`
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	Grades       []string `json:"grades"`
+	GradesInUse  []string `json:"gradesInUse"`
+	IsActive     bool     `json:"isActive"`
 }
 
 type SchoolRequest struct {

@@ -2,6 +2,7 @@ package gormsqlite
 
 import (
 	"context"
+	"strings"
 
 	"gorm.io/gorm"
 
@@ -33,6 +34,38 @@ func (s *Store) School(ctx context.Context, id string) (model.School, error) {
 	var record schoolRecord
 	err := s.db.WithContext(ctx).Preload("Grades", func(db *gorm.DB) *gorm.DB { return db.Order("position") }).First(&record, "id = ? AND user_id = ?", id, userID(ctx)).Error
 	return schoolModel(record), storageError(err)
+}
+
+// SchoolGradesInUse returns distinct grade strings linked to classes or students for the school.
+func (s *Store) SchoolGradesInUse(ctx context.Context, schoolID string) ([]string, error) {
+	ownerID := userID(ctx)
+	var classGrades []string
+	if err := s.db.WithContext(ctx).Model(&classRecord{}).
+		Where("school_id = ? AND user_id = ?", schoolID, ownerID).
+		Distinct().Pluck("grade", &classGrades).Error; err != nil {
+		return nil, storageError(err)
+	}
+	var studentGrades []string
+	if err := s.db.WithContext(ctx).Model(&studentGradeRecord{}).
+		Joins("JOIN students ON students.id = student_grades.student_id").
+		Where("students.school_id = ? AND students.user_id = ?", schoolID, ownerID).
+		Distinct().Pluck("student_grades.grade", &studentGrades).Error; err != nil {
+		return nil, storageError(err)
+	}
+	seen := make(map[string]struct{}, len(classGrades)+len(studentGrades))
+	result := make([]string, 0, len(classGrades)+len(studentGrades))
+	for _, grade := range append(classGrades, studentGrades...) {
+		key := strings.ToLower(strings.TrimSpace(grade))
+		if key == "" {
+			continue
+		}
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		result = append(result, grade)
+	}
+	return result, nil
 }
 
 func createSchool(tx *gorm.DB, ownerID string, school model.School) error {

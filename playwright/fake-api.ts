@@ -2,7 +2,7 @@ import type { Page, Route } from '@playwright/test'
 
 type FakeItem = { id: string, name: string, [key: string]: unknown }
 
-const school = { id: 'school-1', name: 'Greenwood Academy', grades: ['6', '7', '8', '9'] }
+const school = { id: 'school-1', name: 'Greenwood Academy', grades: ['6', '7', '8', '9'], gradesInUse: ['6', '7', '8'] }
 const year = {
   id: 'year-1',
   schoolId: school.id,
@@ -96,7 +96,7 @@ const assignments: FakeItem[] = classes.flatMap((classItem, classIndex) =>
       id: `assignment-${classIndex * 4 + assignmentIndex + 1}`,
       name,
       type: 'class',
-      class: { id: classItem.id, name: classItem.name },
+      class: { id: classItem.id, name: classItem.name, grade: classItem.grade },
       dueDate: `2026-08-${String(2 + classIndex * 4 + assignmentIndex).padStart(2, '0')}`,
       totalScore,
       completion: `${4 + (assignmentIndex % 2)} / 5`,
@@ -118,7 +118,7 @@ const exams: FakeItem[] = classes.flatMap((classItem, classIndex) =>
       id: `exam-${classIndex * 4 + examIndex + 1}`,
       name: `${classItem.subject} ${topic}`,
       type: 'exam',
-      class: { id: classItem.id, name: classItem.name },
+      class: { id: classItem.id, name: classItem.name, grade: classItem.grade },
       examDate: `2026-07-${String(8 + classIndex * 4 + examIndex).padStart(2, '0')}`,
       totalScore: 100,
       markedCount: examIndex === 3 ? 4 : 5,
@@ -173,7 +173,7 @@ const users = [
   { id: 'user-2', name: 'Noah Thomas', email: 'noah@example.test', role: 'user', blocked: true, createdAt: '2026-07-18T09:00:00Z' }
 ]
 
-function response(path: string, setupPage: boolean) {
+function response(path: string, setupPage: boolean, grade?: string) {
   if (path === '/admin/status') return { data: { adminExists: !setupPage } }
   if (path === '/admin/me') return { data: admin }
   if (path.startsWith('/admin/users')) return { data: users, meta: { total: users.length } }
@@ -185,10 +185,19 @@ function response(path: string, setupPage: boolean) {
 
   const collections: Record<string, Record<string, unknown>[]> = { '/students': students, '/classes': classes, '/assignments': assignments, '/exams': exams }
   for (const [endpoint, items] of Object.entries(collections)) {
-    if (path === endpoint) return { data: items, meta: { total: items.length } }
+    if (path === endpoint) {
+      const filtered = grade
+        ? items.filter((item) => {
+            const itemGrade = String(item.grade ?? (item.class as { grade?: string } | undefined)?.grade ?? '')
+            return itemGrade.toLowerCase() === grade.toLowerCase()
+          })
+        : items
+      return { data: filtered, meta: { total: filtered.length } }
+    }
     if (path.startsWith(`${endpoint}/`)) {
       const id = path.slice(endpoint.length + 1).split('/')[0]
-      return { data: items.find(item => item.id === id) ?? items[0] }
+      const item = items.find(entry => entry.id === id) ?? items[0]
+      return { data: item }
     }
   }
   return { data: {} }
@@ -196,7 +205,9 @@ function response(path: string, setupPage: boolean) {
 
 export async function mockApi(page: Page, setupPage: boolean) {
   await page.route('http://localhost:8080/api/v1/**', async (route: Route) => {
-    const path = new URL(route.request().url()).pathname.replace('/api/v1', '')
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(response(path, setupPage)) })
+    const url = new URL(route.request().url())
+    const path = url.pathname.replace('/api/v1', '')
+    const grade = url.searchParams.get('grade') || undefined
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(response(path, setupPage, grade)) })
   })
 }

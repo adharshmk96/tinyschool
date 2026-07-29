@@ -18,7 +18,7 @@ func TestExamPerformanceUsesScoreSummaryNotTrend(t *testing.T) {
 		},
 	}
 
-	performance := examDTO(item, true).Performance
+	performance := examDTO(item, true, "").Performance
 	if performance == nil {
 		t.Fatal("performance is nil")
 	}
@@ -45,7 +45,7 @@ func TestAssignmentPerformanceUsesScoreSummary(t *testing.T) {
 		},
 	}
 
-	performance := assignmentDTO(item, true).Performance
+	performance := assignmentDTO(item, true, "").Performance
 	if performance == nil {
 		t.Fatal("performance is nil")
 	}

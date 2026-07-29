@@ -20,6 +20,19 @@ func (s *Store) ListAssignments(ctx context.Context, options storage.ListOptions
 	if options.AcademicYearID != "" {
 		query = query.Where("assignments.academic_year_id = ?", options.AcademicYearID)
 	}
+	if options.Grade != "" {
+		grade := options.Grade
+		yearID := options.AcademicYearID
+		query = query.Where(`
+			EXISTS (SELECT 1 FROM classes c WHERE c.id = assignments.class_id AND LOWER(c.grade) = LOWER(?))
+			OR EXISTS (
+				SELECT 1 FROM assignment_students ast
+				JOIN student_grades sg ON sg.student_id = ast.student_id
+				WHERE ast.assignment_id = assignments.id
+				  AND LOWER(sg.grade) = LOWER(?)
+				  AND (? = '' OR sg.academic_year_id = ?)
+			)`, grade, grade, yearID, yearID)
+	}
 	if options.Search != "" {
 		p := contains(options.Search)
 		query = query.Where("LOWER(assignments.name) LIKE ? OR LOWER(assignments.type) LIKE ? OR EXISTS (SELECT 1 FROM classes c WHERE c.id = assignments.class_id AND LOWER(c.name) LIKE ?)", p, p, p)

@@ -22,17 +22,21 @@ func (a *App) ListClasses(ctx context.Context, input dto.ListOptions) (dto.Page[
 	}
 	result := make([]dto.Class, len(items))
 	for index := range items {
-		result[index] = classDTO(items[index], false)
+		result[index] = classDTO(items[index], false, "")
 	}
 	return dto.Page[dto.Class]{Items: result, Total: int(total), Page: options.Page, PageSize: options.PageSize}, nil
 }
 
 func (a *App) GetClass(ctx context.Context, id string) (dto.Class, error) {
+	return a.GetClassFiltered(ctx, id, "")
+}
+
+func (a *App) GetClassFiltered(ctx context.Context, id, grade string) (dto.Class, error) {
 	item, err := a.storage.Class(ctx, strings.TrimSpace(id))
 	if err != nil {
 		return dto.Class{}, translate(err, "class")
 	}
-	return classDTO(item, true), nil
+	return classDTO(item, true, strings.TrimSpace(grade)), nil
 }
 
 func (a *App) CreateClass(ctx context.Context, input dto.ClassRequest) (dto.Class, error) {
@@ -48,7 +52,7 @@ func (a *App) CreateClass(ctx context.Context, input dto.ClassRequest) (dto.Clas
 	if err != nil {
 		return dto.Class{}, translate(err, "class")
 	}
-	return classDTO(created, true), nil
+	return classDTO(created, true, ""), nil
 }
 
 func (a *App) UpdateClass(ctx context.Context, id string, input dto.UpdateClassRequest) (dto.Class, error) {
@@ -89,7 +93,7 @@ func (a *App) UpdateClass(ctx context.Context, id string, input dto.UpdateClassR
 	if err != nil {
 		return dto.Class{}, translate(err, "class")
 	}
-	return classDTO(updated, true), nil
+	return classDTO(updated, true, ""), nil
 }
 
 func (a *App) DeleteClass(ctx context.Context, id string) error {
@@ -453,8 +457,18 @@ func studentRequest(item model.Student) dto.StudentRequest {
 	}
 }
 
-func classDTO(item model.Class, detail bool) dto.Class {
-	performance := classPerformance(item.Students)
+func classDTO(item model.Class, detail bool, gradeFilter string) dto.Class {
+	students := item.Students
+	if gradeFilter != "" {
+		filtered := make([]model.Student, 0, len(students))
+		for _, student := range students {
+			if strings.EqualFold(strings.TrimSpace(student.GradeFor(item.AcademicYearID)), strings.TrimSpace(gradeFilter)) {
+				filtered = append(filtered, student)
+			}
+		}
+		students = filtered
+	}
+	performance := classPerformance(students)
 	result := dto.Class{
 		ID: item.ID, SchoolID: item.SchoolID, AcademicYearID: item.AcademicYearID,
 		Name: item.Name, Subject: item.Subject, Grade: item.Grade, Description: item.Description,
@@ -464,12 +478,19 @@ func classDTO(item model.Class, detail bool) dto.Class {
 		return result
 	}
 	result.Performance = &performance
-	result.Students = make([]dto.Reference, len(item.Students))
-	for index, student := range item.Students {
-		result.Students[index] = dto.Reference{ID: student.ID, Name: student.FullName()}
+	result.Students = make([]dto.Reference, len(students))
+	for index, student := range students {
+		result.Students[index] = dto.Reference{
+			ID: student.ID, Name: student.FullName(), Grade: student.GradeFor(item.AcademicYearID),
+		}
 	}
-	result.Assignments = referencesDTO(item.Assignments)
-	result.Exams = referencesDTO(item.Exams)
+	if gradeFilter == "" || strings.EqualFold(strings.TrimSpace(item.Grade), strings.TrimSpace(gradeFilter)) {
+		result.Assignments = referencesDTO(item.Assignments)
+		result.Exams = referencesDTO(item.Exams)
+	} else {
+		result.Assignments = []dto.Reference{}
+		result.Exams = []dto.Reference{}
+	}
 	return result
 }
 

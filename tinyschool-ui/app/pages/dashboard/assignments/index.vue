@@ -11,6 +11,7 @@ definePageMeta({ layout: 'dashboard' })
     detail-base="/dashboard/assignments"
     description="Track class and individual work, due dates, completion and scores."
     academic-year-filter
+    grade-filter
     :sort-options="[
       { label: 'Due date', value: 'dueDate' },
       { label: 'Name', value: 'name' },

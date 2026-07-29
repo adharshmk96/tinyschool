@@ -1,6 +1,6 @@
 # Tiny School
 
-Nuxt UI dashboard backed by a persistent Go, GORM, and SQLite API.
+A simply school management software to manage students, classes
 
 ## Run locally
 

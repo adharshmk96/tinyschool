@@ -3,6 +3,7 @@ package service
 import (
 	"math"
 	"sort"
+	"strings"
 	"time"
 
 	"tinyschool-api/internal/dto"
@@ -212,9 +213,19 @@ func classPerformance(students []model.Student) dto.Performance {
 	return result
 }
 
-func assignmentDTO(item model.Assignment, detail bool) dto.Assignment {
+func assignmentDTO(item model.Assignment, detail bool, gradeFilter string) dto.Assignment {
+	students := item.Students
+	if detail && gradeFilter != "" {
+		filtered := make([]model.AssignmentStudent, 0, len(students))
+		for _, assignee := range students {
+			if strings.EqualFold(strings.TrimSpace(assignee.Student.GradeFor(item.AcademicYearID)), strings.TrimSpace(gradeFilter)) {
+				filtered = append(filtered, assignee)
+			}
+		}
+		students = filtered
+	}
 	completed := 0
-	for _, student := range item.Students {
+	for _, student := range students {
 		if student.Score != nil {
 			completed++
 		}
@@ -222,16 +233,16 @@ func assignmentDTO(item model.Assignment, detail bool) dto.Assignment {
 	result := dto.Assignment{
 		ID: item.ID, SchoolID: item.SchoolID, AcademicYearID: item.AcademicYearID,
 		Name: item.Name, Type: item.Type, DueDate: item.DueDate, TotalScore: item.TotalScore,
-		Class: assignmentClassReference(item), AssigneeCount: len(item.Students),
-		CompletionCount: completed, Completion: percent(completed, len(item.Students)),
+		Class: assignmentClassReference(item), AssigneeCount: len(students),
+		CompletionCount: completed, Completion: percent(completed, len(students)),
 	}
 	if !detail {
 		return result
 	}
-	scores := make([]float64, 0, len(item.Students))
-	ranked := make([]dto.RankedStudent, 0, len(item.Students))
+	scores := make([]float64, 0, len(students))
+	ranked := make([]dto.RankedStudent, 0, len(students))
 	scoreTotal := 0.0
-	for _, assignee := range item.Students {
+	for _, assignee := range students {
 		if assignee.Score == nil || item.TotalScore <= 0 {
 			continue
 		}
@@ -247,8 +258,8 @@ func assignmentDTO(item model.Assignment, detail bool) dto.Assignment {
 		average = round(scoreTotal / float64(len(scores)))
 	}
 	result.Performance = &dto.Performance{
-		AverageScore: average, CompletionRate: percent(completed, len(item.Students)),
-		Completed: completed, Total: len(item.Students), Standing: standing(average, completed),
+		AverageScore: average, CompletionRate: percent(completed, len(students)),
+		Completed: completed, Total: len(students), Standing: standing(average, completed),
 	}
 	sort.Float64s(scores)
 	if len(scores) > 0 {
@@ -265,8 +276,8 @@ func assignmentDTO(item model.Assignment, detail bool) dto.Assignment {
 		ranked = ranked[:3]
 	}
 	result.Performance.TopStudents = ranked
-	result.Assignees = make([]dto.AssignmentAssignee, len(item.Students))
-	for index, assignee := range item.Students {
+	result.Assignees = make([]dto.AssignmentAssignee, len(students))
+	for index, assignee := range students {
 		result.Assignees[index] = dto.AssignmentAssignee{
 			ID: assignee.Student.ID, Name: assignee.Student.FullName(), Grade: assignee.Student.GradeFor(item.AcademicYearID),
 			Score: assignee.Score,
@@ -278,12 +289,22 @@ func assignmentDTO(item model.Assignment, detail bool) dto.Assignment {
 	return result
 }
 
-func examDTO(item model.Exam, detail bool) dto.Exam {
+func examDTO(item model.Exam, detail bool, gradeFilter string) dto.Exam {
+	students := item.Students
+	if detail && gradeFilter != "" {
+		filtered := make([]model.ExamStudent, 0, len(students))
+		for _, student := range students {
+			if strings.EqualFold(strings.TrimSpace(student.Student.GradeFor(item.AcademicYearID)), strings.TrimSpace(gradeFilter)) {
+				filtered = append(filtered, student)
+			}
+		}
+		students = filtered
+	}
 	marked := 0
 	scoreTotal := 0.0
 	performanceTotal := 0.0
-	trend := make([]float64, 0, len(item.Students))
-	for _, student := range item.Students {
+	trend := make([]float64, 0, len(students))
+	for _, student := range students {
 		if student.Score == nil {
 			continue
 		}
@@ -304,15 +325,15 @@ func examDTO(item model.Exam, detail bool) dto.Exam {
 	result := dto.Exam{
 		ID: item.ID, SchoolID: item.SchoolID, AcademicYearID: item.AcademicYearID,
 		Name: item.Name, Type: item.Type, ExamDate: item.ExamDate, TotalScore: item.TotalScore,
-		Class: referenceDTO(item.Class), StudentCount: len(item.Students), MarkedCount: marked,
+		Class: referenceDTO(item.Class), StudentCount: len(students), MarkedCount: marked,
 		AverageScore: averageScore,
 	}
 	if !detail {
 		return result
 	}
 	result.Performance = &dto.Performance{
-		AverageScore: averagePercent, CompletionRate: percent(marked, len(item.Students)),
-		Completed: marked, Total: len(item.Students), Standing: standing(averagePercent, marked),
+		AverageScore: averagePercent, CompletionRate: percent(marked, len(students)),
+		Completed: marked, Total: len(students), Standing: standing(averagePercent, marked),
 	}
 	scores := append([]float64(nil), trend...)
 	sort.Float64s(scores)
@@ -325,8 +346,8 @@ func examDTO(item model.Exam, detail bool) dto.Exam {
 			result.Performance.MedianScore = round((scores[middle-1] + scores[middle]) / 2)
 		}
 	}
-	ranked := make([]dto.RankedStudent, 0, len(item.Students))
-	for _, student := range item.Students {
+	ranked := make([]dto.RankedStudent, 0, len(students))
+	for _, student := range students {
 		if student.Score == nil || item.TotalScore <= 0 {
 			continue
 		}
@@ -340,8 +361,8 @@ func examDTO(item model.Exam, detail bool) dto.Exam {
 		ranked = ranked[:3]
 	}
 	result.Performance.TopStudents = ranked
-	result.Students = make([]dto.ExamStudent, len(item.Students))
-	for index, student := range item.Students {
+	result.Students = make([]dto.ExamStudent, len(students))
+	for index, student := range students {
 		result.Students[index] = dto.ExamStudent{
 			ID: student.Student.ID, Name: student.Student.FullName(), Grade: student.Student.GradeFor(item.AcademicYearID),
 			Score: student.Score,
