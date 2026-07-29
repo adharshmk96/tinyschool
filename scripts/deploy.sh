@@ -8,6 +8,11 @@ DEPLOY_USER="${DEPLOY_USER:-root}"
 DEPLOY_PATH="${DEPLOY_PATH:-/opt/tinyschool}"
 DEPLOY_DOMAIN="${DEPLOY_DOMAIN:-tinyschool.${DEPLOY_HOST}.nip.io}"
 DEPLOY_SSH_KEY="${DEPLOY_SSH_KEY:-}"
+REGISTRY="${REGISTRY:-ghcr.io}"
+REGISTRY_USER="${REGISTRY_USER:-}"
+REGISTRY_TOKEN="${REGISTRY_TOKEN:-}"
+IMAGE_UI="${IMAGE_UI:-}"
+IMAGE_API="${IMAGE_API:-}"
 REMOTE="${DEPLOY_USER}@${DEPLOY_HOST}"
 RELEASE_ID="${GITHUB_SHA:-$(date -u +%Y%m%d%H%M%S)}"
 RELEASE_ID="${RELEASE_ID:0:16}"
@@ -29,6 +34,10 @@ command -v curl >/dev/null || fail "curl is required"
 [[ "${DEPLOY_USER}" =~ ^[a-zA-Z0-9._-]+$ ]] || fail "DEPLOY_USER contains unsupported characters"
 [[ "${DEPLOY_DOMAIN}" =~ ^[a-zA-Z0-9.-]+$ ]] || fail "DEPLOY_DOMAIN contains unsupported characters"
 [[ "${RELEASE_ID}" =~ ^[a-zA-Z0-9._-]+$ ]] || fail "release ID contains unsupported characters"
+[[ -n "${IMAGE_UI}" ]] || fail "IMAGE_UI must be set to the image built by CI"
+[[ -n "${IMAGE_API}" ]] || fail "IMAGE_API must be set to the image built by CI"
+[[ "${IMAGE_UI}" =~ ^[a-zA-Z0-9./:_-]+$ ]] || fail "IMAGE_UI contains unsupported characters"
+[[ "${IMAGE_API}" =~ ^[a-zA-Z0-9./:_-]+$ ]] || fail "IMAGE_API contains unsupported characters"
 
 # ServerAliveInterval keeps the TCP session alive through intermediate NAT while
 # a long, silent remote build runs; without it the connection is dropped and ssh
@@ -68,18 +77,37 @@ tar \
   -C "${ROOT_DIR}" -cf - . \
   | "${SSH[@]}" "tar -xf - -C '${REMOTE_RELEASE}'"
 
-log "Building and starting Tiny School"
-"${SSH[@]}" bash -s -- "${REMOTE_RELEASE}" "${DEPLOY_PATH}" "${DEPLOY_DOMAIN}" <<'REMOTE'
+if [[ -n "${REGISTRY_TOKEN}" ]]; then
+  log "Authenticating to ${REGISTRY}"
+  # Piped over stdin so the token never lands in the remote process argv.
+  printf '%s\n' "${REGISTRY_TOKEN}" \
+    | "${SSH[@]}" "docker login '${REGISTRY}' -u '${REGISTRY_USER}' --password-stdin >/dev/null" \
+    || fail "docker login to ${REGISTRY} failed"
+fi
+
+log "Pulling ${IMAGE_UI} and ${IMAGE_API}"
+"${SSH[@]}" bash -s -- \
+  "${REMOTE_RELEASE}" "${DEPLOY_PATH}" "${DEPLOY_DOMAIN}" "${IMAGE_UI}" "${IMAGE_API}" <<'REMOTE'
 set -Eeuo pipefail
 release_path="$1"
 deploy_path="$2"
 domain="$3"
+image_ui="$4"
+image_api="$5"
 
 cd "${release_path}/deploy"
-DOMAIN="${domain}" docker compose build --progress=plain
-DOMAIN="${domain}" docker compose up -d --no-build --remove-orphans
+export DOMAIN="${domain}" IMAGE_UI="${image_ui}" IMAGE_API="${image_api}"
+docker compose pull --quiet api ui
+docker compose up -d --remove-orphans
 ln -sfn "${release_path}" "${deploy_path}/current"
+# Per-commit tags accumulate; drop unused images older than a week so the
+# host does not slowly fill up.
+docker image prune -af --filter 'until=168h' >/dev/null || true
 REMOTE
+
+if [[ -n "${REGISTRY_TOKEN}" ]]; then
+  "${SSH[@]}" "docker logout '${REGISTRY}' >/dev/null" || true
+fi
 
 log "Waiting for https://${DEPLOY_DOMAIN}/ready"
 for attempt in {1..30}; do
@@ -88,7 +116,7 @@ for attempt in {1..30}; do
     exit 0
   fi
   if (( attempt == 30 )); then
-    "${SSH[@]}" "cd '${REMOTE_RELEASE}/deploy' && docker compose ps"
+    "${SSH[@]}" "cd '${REMOTE_RELEASE}/deploy' && DOMAIN='${DEPLOY_DOMAIN}' IMAGE_UI='${IMAGE_UI}' IMAGE_API='${IMAGE_API}' docker compose ps"
     fail "service did not become ready"
   fi
   sleep 2
