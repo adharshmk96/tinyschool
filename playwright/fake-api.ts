@@ -173,14 +173,14 @@ const users = [
   { id: 'user-2', name: 'Noah Thomas', email: 'noah@example.test', role: 'user', blocked: true, createdAt: '2026-07-18T09:00:00Z' }
 ]
 
-function response(path: string, setupPage: boolean, classroom?: string) {
+function response(path: string, setupPage: boolean, classroom?: string, emptyWorkspace = false) {
   if (path === '/admin/status') return { data: { adminExists: !setupPage } }
   if (path === '/admin/me') return { data: admin }
   if (path.startsWith('/admin/users')) return { data: users, meta: { total: users.length } }
   if (path === '/me') return { data: { id: 'teacher-1', name: 'Ananya Iyer', email: 'ananya@example.test' } }
   if (path === '/overview') return { data: { students: students.length, classes: classes.length, assignments: assignments.length, exams: exams.length } }
-  if (path === '/schools') return { data: [school], meta: { total: 1 } }
-  if (path === '/academic-years') return { data: [year], meta: { total: 1 } }
+  if (path === '/schools') return { data: emptyWorkspace ? [] : [school], meta: { total: emptyWorkspace ? 0 : 1 } }
+  if (path === '/academic-years') return { data: emptyWorkspace ? [] : [year], meta: { total: emptyWorkspace ? 0 : 1 } }
   if (path === `/academic-years/${year.id}`) return { data: year }
 
   const collections: Record<string, Record<string, unknown>[]> = { '/students': students, '/classes': classes, '/assignments': assignments, '/exams': exams }
@@ -210,11 +210,11 @@ function response(path: string, setupPage: boolean, classroom?: string) {
   return { data: {} }
 }
 
-export async function mockApi(page: Page, setupPage: boolean) {
+export async function mockApi(page: Page, setupPage: boolean, emptyWorkspace = false) {
   await page.route('http://localhost:8080/api/v1/**', async (route: Route) => {
     const url = new URL(route.request().url())
     const path = url.pathname.replace('/api/v1', '')
     const classroom = url.searchParams.get('classroom') || undefined
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(response(path, setupPage, classroom)) })
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(response(path, setupPage, classroom, emptyWorkspace)) })
   })
 }

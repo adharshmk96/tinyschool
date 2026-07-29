@@ -1,7 +1,19 @@
 <script setup lang="ts">
 import type { AcademicSegment, AcademicYear } from '~/types/api'
 
-const props = defineProps<{ initial?: AcademicYear }>()
+const props = defineProps<{
+  initial?: AcademicYear
+  /** Render without the built-in footer so a host (e.g. the onboarding wizard) can drive submission. */
+  hideActions?: boolean
+  /** Form id to target from an external submit button when `hideActions` is set. */
+  formId?: string
+  /** Drop the card chrome so the form blends into a host container. */
+  flat?: boolean
+}>()
+
+const cardUi = computed(() => props.flat
+  ? { root: 'bg-transparent ring-0 shadow-none', header: 'px-0 pt-0', body: 'px-0', footer: 'px-0' }
+  : undefined)
 const emit = defineEmits<{ save: [value: AcademicYear] }>()
 const toast = useToast()
 
@@ -49,10 +61,11 @@ function submit() {
 
 <template>
   <form
+    :id="formId"
     class="space-y-6"
     @submit.prevent="submit"
   >
-    <UCard>
+    <UCard :ui="cardUi">
       <template #header>
         <h2 class="font-semibold">
           Academic year details
@@ -84,7 +97,7 @@ function submit() {
       </div>
     </UCard>
 
-    <UCard>
+    <UCard :ui="cardUi">
       <template #header>
         <div class="flex items-center justify-between gap-4">
           <div>
@@ -166,7 +179,7 @@ function submit() {
       </div>
     </UCard>
 
-    <UCard>
+    <UCard :ui="cardUi">
       <template #header>
         <h2 class="font-semibold">
           Timeline preview
@@ -180,7 +193,10 @@ function submit() {
       />
     </UCard>
 
-    <div class="flex justify-end gap-2">
+    <div
+      v-if="!hideActions"
+      class="flex justify-end gap-2"
+    >
       <UButton
         type="button"
         to="/dashboard/settings/academic-years"

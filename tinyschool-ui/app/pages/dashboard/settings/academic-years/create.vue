@@ -46,7 +46,7 @@ async function save(year: AcademicYear) {
     <PageHeading
       title="Create academic year"
       description="Build a clear calendar from terms and vacations."
-      :eyebrow="$route.query.onboarding === '1' ? 'Setup · Step 2 of 2' : 'Academic years'"
+      eyebrow="Academic years"
     />
     <div class="mt-6">
       <AcademicYearForm @save="save" />

@@ -21,7 +21,7 @@ async function clearData() {
       description: 'Your schools and all related records were deleted.',
       color: 'success'
     })
-    await navigateTo('/dashboard/settings/schools?create=1&onboarding=1')
+    await navigateTo('/onboarding')
   } catch (error) {
     toast.add({
       title: 'Could not clear data',

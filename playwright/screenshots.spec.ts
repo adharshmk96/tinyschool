@@ -39,7 +39,8 @@ const routes = [
   ['30-settings-academic-year-create', '/dashboard/settings/academic-years/create'],
   ['31-settings-academic-year-detail', '/dashboard/settings/academic-years/year-1'],
   ['32-settings-academic-year-edit', '/dashboard/settings/academic-years/year-1/edit'],
-  ['33-settings-data', '/dashboard/settings/data']
+  ['33-settings-data', '/dashboard/settings/data'],
+  ['34-onboarding', '/onboarding']
 ] as const
 
 test.beforeAll(async () => {
@@ -59,7 +60,7 @@ for (const mode of modes) {
   for (const [name, path] of routes) {
     test(`capture ${mode}/${name}`, async ({ page, context }) => {
       await page.emulateMedia({ colorScheme: mode })
-      await mockApi(page, path === '/admin/setup')
+      await mockApi(page, path === '/admin/setup', path === '/onboarding')
       await context.addCookies([
         { name: 'tiny-school-authenticated', value: nuxtCookie('true'), url: 'http://127.0.0.1:3000' },
         { name: 'tiny-school-school', value: nuxtCookie('school-1'), url: 'http://127.0.0.1:3000' },

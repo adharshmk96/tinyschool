@@ -7,7 +7,7 @@ useSeoMeta({ title: 'School settings' })
 const toast = useToast()
 const { postItem, patchItem, request } = useApi()
 const route = useRoute()
-const { schools, academicYears, selectedSchoolId, load } = useSchoolContext()
+const { schools, selectedSchoolId, load } = useSchoolContext()
 const modalOpen = ref(false)
 const deleteOpen = ref(false)
 const editingId = ref<string | null>(null)
@@ -34,29 +34,6 @@ function openEdit(school: School) {
   modalOpen.value = true
 }
 
-function classroomInUse(classroom: string) {
-  return form.classroomsInUse.some(item => item.toLowerCase() === classroom.toLowerCase())
-}
-
-function addClassroom() {
-  const classroom = form.newClassroom.trim()
-  if (!classroom) return
-  if (form.classrooms.some(item => item.toLowerCase() === classroom.toLowerCase())) {
-    toast.add({ title: 'Classroom already added', color: 'error' })
-    return
-  }
-  form.classrooms.push(classroom)
-  form.newClassroom = ''
-}
-
-function removeClassroom(classroom: string) {
-  if (classroomInUse(classroom)) {
-    toast.add({ title: 'Classroom is linked', description: 'Remove linked classes or students before deleting this classroom.', color: 'error' })
-    return
-  }
-  form.classrooms = form.classrooms.filter(item => item !== classroom)
-}
-
 async function save() {
   const name = form.name.trim()
   const classrooms = form.classrooms.map(item => item.trim()).filter(Boolean)
@@ -80,8 +57,6 @@ async function save() {
     }
     modalOpen.value = false
     toast.add({ title: editingId.value ? 'School updated' : 'School created', color: 'success' })
-    if (!editingId.value && route.query.onboarding === '1' && !academicYears.value.length)
-      await navigateTo('/dashboard/settings/academic-years/create?onboarding=1')
   } catch (error) {
     toast.add({ title: 'Could not save school', description: apiErrorMessage(error, 'Please try again.'), color: 'error' })
   } finally {
@@ -208,66 +183,12 @@ onMounted(async () => {
       <template #body>
         <form
           id="school-form"
-          class="space-y-5"
           @submit.prevent="save"
         >
-          <UFormField
-            label="School name"
-            required
-          >
-            <UInput
-              v-model="form.name"
-              autofocus
-              class="w-full"
-              placeholder="Oakridge Learning Centre"
-            />
-          </UFormField>
-          <UFormField
-            label="Classrooms"
-            description="Linked classrooms cannot be removed while classes or students use them."
-            required
-          >
-            <div class="space-y-3">
-              <div
-                v-if="form.classrooms.length"
-                class="flex flex-wrap gap-2"
-              >
-                <div
-                  v-for="classroom in form.classrooms"
-                  :key="classroom"
-                  class="inline-flex items-center gap-1 rounded-md bg-elevated px-2.5 py-1 text-sm"
-                >
-                  <span>{{ classroom }}</span>
-                  <UButton
-                    :icon="classroomInUse(classroom) ? 'i-lucide-lock' : 'i-lucide-x'"
-                    size="xs"
-                    color="neutral"
-                    variant="ghost"
-                    class="-me-1"
-                    :disabled="classroomInUse(classroom)"
-                    :aria-label="classroomInUse(classroom) ? `${classroom} is linked` : `Remove ${classroom}`"
-                    @click.prevent="removeClassroom(classroom)"
-                  />
-                </div>
-              </div>
-              <div class="flex gap-2">
-                <UInput
-                  v-model="form.newClassroom"
-                  class="w-full"
-                  placeholder="10A"
-                  @keydown.enter.prevent="addClassroom"
-                />
-                <UButton
-                  type="button"
-                  icon="i-lucide-plus"
-                  label="Add"
-                  color="neutral"
-                  variant="outline"
-                  @click="addClassroom"
-                />
-              </div>
-            </div>
-          </UFormField>
+          <SchoolFields
+            :form="form"
+            autofocus
+          />
         </form>
       </template>
       <template #footer>

@@ -27,14 +27,8 @@ function isActive(path: string) {
 }
 
 async function redirectToOnboarding() {
-  const schoolSetupPath = '/dashboard/settings/schools'
-  const yearSetupPath = '/dashboard/settings/academic-years/create'
-  if (!schools.value.length && route.path !== schoolSetupPath) {
-    await navigateTo(`${schoolSetupPath}?create=1&onboarding=1`)
-    return
-  }
-  if (schools.value.length && !availableAcademicYears.value.length && route.path !== yearSetupPath)
-    await navigateTo(`${yearSetupPath}?onboarding=1`)
+  if (!schools.value.length || !availableAcademicYears.value.length)
+    await navigateTo('/onboarding')
 }
 
 async function logout() {
@@ -110,7 +104,7 @@ watch([schools, availableAcademicYears], async () => {
         />
         <UButton
           v-else
-          to="/dashboard/settings/schools"
+          to="/onboarding"
           icon="i-lucide-plus"
           label="Create school"
           color="neutral"
@@ -131,7 +125,7 @@ watch([schools, availableAcademicYears], async () => {
         />
         <UButton
           v-else
-          to="/dashboard/settings/academic-years/create"
+          to="/onboarding"
           icon="i-lucide-plus"
           label="Create academic year"
           color="neutral"
@@ -227,7 +221,7 @@ watch([schools, availableAcademicYears], async () => {
           />
           <UButton
             v-else
-            to="/dashboard/settings/schools"
+            to="/onboarding"
             icon="i-lucide-plus"
             label="Create school"
             color="neutral"
@@ -246,7 +240,7 @@ watch([schools, availableAcademicYears], async () => {
           />
           <UButton
             v-else
-            to="/dashboard/settings/academic-years/create"
+            to="/onboarding"
             icon="i-lucide-plus"
             label="Create academic year"
             color="neutral"
