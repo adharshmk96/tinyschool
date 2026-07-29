@@ -23,7 +23,7 @@ onMounted(() => {
     :fields="[
       { key: 'email', label: 'Email' },
       { key: 'phone', label: 'Phone' },
-      { key: 'grade', label: 'Grade (current year)' },
+      { key: 'classroom', label: 'Classroom (current year)' },
       { key: 'guardian.name', label: 'Guardian' },
       { key: 'guardian.phone', label: 'Guardian phone' },
       { key: 'residentAddress', label: 'Resident address' }
@@ -33,7 +33,7 @@ onMounted(() => {
       { key: 'lastName', label: 'Last name' },
       { key: 'email', label: 'Email', type: 'email' },
       { key: 'phone', label: 'Phone' },
-      { key: 'grades', label: 'Grade by academic year', type: 'grades' },
+      { key: 'classrooms', label: 'Classroom by academic year', type: 'classrooms' },
       { key: 'residentAddress', label: 'Resident address' }
     ]"
     :tabs="[

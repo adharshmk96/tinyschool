@@ -12,7 +12,7 @@ import (
 )
 
 func examPreloads(db *gorm.DB) *gorm.DB {
-	return db.Preload("Class").Preload("Students.Student.Grades.AcademicYear")
+	return db.Preload("Class").Preload("Students.Student.Classrooms.AcademicYear")
 }
 
 func (s *Store) ListExams(ctx context.Context, options storage.ListOptions) ([]model.Exam, int64, error) {
@@ -20,8 +20,11 @@ func (s *Store) ListExams(ctx context.Context, options storage.ListOptions) ([]m
 	if options.AcademicYearID != "" {
 		query = query.Where("exams.academic_year_id = ?", options.AcademicYearID)
 	}
-	if options.Grade != "" {
-		query = query.Where("EXISTS (SELECT 1 FROM classes c WHERE c.id = exams.class_id AND LOWER(c.grade) = LOWER(?))", options.Grade)
+	if options.Classroom != "" {
+		query = query.Where(`EXISTS (
+			SELECT 1 FROM class_classrooms cc
+			WHERE cc.class_id = exams.class_id AND LOWER(cc.classroom) = LOWER(?)
+		)`, options.Classroom)
 	}
 	if options.Search != "" {
 		p := contains(options.Search)

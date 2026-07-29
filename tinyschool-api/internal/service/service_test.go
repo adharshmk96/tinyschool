@@ -20,7 +20,7 @@ type fakeStorage struct {
 	assignment  model.Assignment
 	student     model.Student
 	createdYear model.AcademicYear
-	gradesInUse []string
+	classroomsInUse []string
 	scoreWasSet bool
 	deleted     bool
 	updated     bool
@@ -33,8 +33,8 @@ func (f *fakeStorage) School(_ context.Context, id string) (model.School, error)
 	return f.school, nil
 }
 
-func (f *fakeStorage) SchoolGradesInUse(_ context.Context, _ string) ([]string, error) {
-	return append([]string(nil), f.gradesInUse...), nil
+func (f *fakeStorage) SchoolClassroomsInUse(_ context.Context, _ string) ([]string, error) {
+	return append([]string(nil), f.classroomsInUse...), nil
 }
 
 func (f *fakeStorage) UpdateSchool(_ context.Context, school model.School) (model.School, error) {
@@ -109,7 +109,7 @@ func (f *fakeStorage) UserByID(_ context.Context, id string) (model.User, error)
 }
 
 func TestCreateAcademicYearCalculatesConsecutiveDates(t *testing.T) {
-	store := &fakeStorage{school: model.School{ID: "sch_1", Grades: []string{"Grade 1"}}}
+	store := &fakeStorage{school: model.School{ID: "sch_1", Classrooms: []string{"1A"}}}
 	app := New(store, WithIDGenerator(func(prefix string) (string, error) {
 		return prefix + "_test", nil
 	}))
@@ -231,36 +231,36 @@ func TestRefreshAllowsExpiredTokenWhileSessionActive(t *testing.T) {
 	}
 }
 
-func TestUpdateSchoolRejectsRemovingLinkedGrade(t *testing.T) {
+func TestUpdateSchoolRejectsRemovingLinkedClassroom(t *testing.T) {
 	store := &fakeStorage{
-		school:      model.School{ID: "sch_1", Name: "Academy", Grades: []string{"Grade 6", "Grade 7", "Grade 8"}, IsActive: true},
-		gradesInUse: []string{"Grade 7"},
+		school:      model.School{ID: "sch_1", Name: "Academy", Classrooms: []string{"6A", "7A", "8A"}, IsActive: true},
+		classroomsInUse: []string{"7A"},
 	}
 	_, err := New(store).UpdateSchool(context.Background(), "sch_1", dto.SchoolRequest{
-		Name: "Academy", Grades: []string{"Grade 6", "Grade 8"}, IsActive: true,
+		Name: "Academy", Classrooms: []string{"6A", "8A"}, IsActive: true,
 	})
 	if !errors.Is(err, ErrConflict) {
 		t.Fatalf("expected conflict, got %v", err)
 	}
 	if store.updated {
-		t.Fatal("storage update occurred for a linked grade removal")
+		t.Fatal("storage update occurred for a linked classroom removal")
 	}
 }
 
-func TestAssignmentDetailFiltersAssigneesByGrade(t *testing.T) {
+func TestAssignmentDetailFiltersAssigneesByClassroom(t *testing.T) {
 	store := &fakeStorage{assignment: model.Assignment{
 		ID: "asg_1", AcademicYearID: "ay_1", TotalScore: 20,
 		Students: []model.AssignmentStudent{
-			{Student: model.Student{ID: "stu_1", FirstName: "A", Grades: []model.StudentGrade{{AcademicYearID: "ay_1", Grade: "Grade 7", IsCurrent: true}}}},
-			{Student: model.Student{ID: "stu_2", FirstName: "B", Grades: []model.StudentGrade{{AcademicYearID: "ay_1", Grade: "Grade 6", IsCurrent: true}}}},
+			{Student: model.Student{ID: "stu_1", FirstName: "A", Classrooms: []model.StudentClassroom{{AcademicYearID: "ay_1", Classroom: "7A", IsCurrent: true}}}},
+			{Student: model.Student{ID: "stu_2", FirstName: "B", Classrooms: []model.StudentClassroom{{AcademicYearID: "ay_1", Classroom: "6A", IsCurrent: true}}}},
 		},
 	}}
-	result, err := New(store).GetAssignmentFiltered(context.Background(), "asg_1", "Grade 7")
+	result, err := New(store).GetAssignmentFiltered(context.Background(), "asg_1", "7A")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(result.Assignees) != 1 || result.Assignees[0].ID != "stu_1" {
-		t.Fatalf("expected one grade 7 assignee, got %+v", result.Assignees)
+		t.Fatalf("expected one classroom 7A assignee, got %+v", result.Assignees)
 	}
 	if result.Performance == nil || result.Performance.Total != 1 {
 		t.Fatalf("expected filtered performance total 1, got %+v", result.Performance)

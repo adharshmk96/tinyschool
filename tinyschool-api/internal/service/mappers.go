@@ -213,12 +213,12 @@ func classPerformance(students []model.Student) dto.Performance {
 	return result
 }
 
-func assignmentDTO(item model.Assignment, detail bool, gradeFilter string) dto.Assignment {
+func assignmentDTO(item model.Assignment, detail bool, classroomFilter string) dto.Assignment {
 	students := item.Students
-	if detail && gradeFilter != "" {
+	if detail && classroomFilter != "" {
 		filtered := make([]model.AssignmentStudent, 0, len(students))
 		for _, assignee := range students {
-			if strings.EqualFold(strings.TrimSpace(assignee.Student.GradeFor(item.AcademicYearID)), strings.TrimSpace(gradeFilter)) {
+			if strings.EqualFold(strings.TrimSpace(assignee.Student.ClassroomFor(item.AcademicYearID)), strings.TrimSpace(classroomFilter)) {
 				filtered = append(filtered, assignee)
 			}
 		}
@@ -279,7 +279,7 @@ func assignmentDTO(item model.Assignment, detail bool, gradeFilter string) dto.A
 	result.Assignees = make([]dto.AssignmentAssignee, len(students))
 	for index, assignee := range students {
 		result.Assignees[index] = dto.AssignmentAssignee{
-			ID: assignee.Student.ID, Name: assignee.Student.FullName(), Grade: assignee.Student.GradeFor(item.AcademicYearID),
+			ID: assignee.Student.ID, Name: assignee.Student.FullName(), Classroom: assignee.Student.ClassroomFor(item.AcademicYearID),
 			Score: assignee.Score,
 		}
 		if assignee.CompletedAt != nil {
@@ -289,12 +289,12 @@ func assignmentDTO(item model.Assignment, detail bool, gradeFilter string) dto.A
 	return result
 }
 
-func examDTO(item model.Exam, detail bool, gradeFilter string) dto.Exam {
+func examDTO(item model.Exam, detail bool, classroomFilter string) dto.Exam {
 	students := item.Students
-	if detail && gradeFilter != "" {
+	if detail && classroomFilter != "" {
 		filtered := make([]model.ExamStudent, 0, len(students))
 		for _, student := range students {
-			if strings.EqualFold(strings.TrimSpace(student.Student.GradeFor(item.AcademicYearID)), strings.TrimSpace(gradeFilter)) {
+			if strings.EqualFold(strings.TrimSpace(student.Student.ClassroomFor(item.AcademicYearID)), strings.TrimSpace(classroomFilter)) {
 				filtered = append(filtered, student)
 			}
 		}
@@ -364,7 +364,7 @@ func examDTO(item model.Exam, detail bool, gradeFilter string) dto.Exam {
 	result.Students = make([]dto.ExamStudent, len(students))
 	for index, student := range students {
 		result.Students[index] = dto.ExamStudent{
-			ID: student.Student.ID, Name: student.Student.FullName(), Grade: student.Student.GradeFor(item.AcademicYearID),
+			ID: student.Student.ID, Name: student.Student.FullName(), Classroom: student.Student.ClassroomFor(item.AcademicYearID),
 			Score: student.Score,
 		}
 		if student.MarkedAt != nil {

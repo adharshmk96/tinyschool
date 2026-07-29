@@ -2,7 +2,7 @@ import type { Page, Route } from '@playwright/test'
 
 type FakeItem = { id: string, name: string, [key: string]: unknown }
 
-const school = { id: 'school-1', name: 'Greenwood Academy', grades: ['6', '7', '8', '9'], gradesInUse: ['6', '7', '8'] }
+const school = { id: 'school-1', name: 'Greenwood Academy', classrooms: ['6A', '7A', '7B', '8A', '8B', '9A'], classroomsInUse: ['6A', '7A', '8A'] }
 const year = {
   id: 'year-1',
   schoolId: school.id,
@@ -23,14 +23,14 @@ const studentNames = [
   ['Myra', 'Iyer'], ['Atharv', 'Kulkarni'], ['Zoya', 'Ali'], ['Dev', 'Malhotra'], ['Saanvi', 'Jain']
 ]
 const classDefinitions = [
-  { name: 'Grade 7 Mathematics', subject: 'Mathematics', grade: '7', description: 'Numbers, algebra and practical problem solving.' },
-  { name: 'Grade 7 Science', subject: 'Science', grade: '7', description: 'Hands-on physics, chemistry and biology.' },
-  { name: 'Grade 8 English', subject: 'English', grade: '8', description: 'Literature, writing and spoken communication.' },
-  { name: 'Grade 8 Social Studies', subject: 'Social Studies', grade: '8', description: 'History, geography and civic life.' }
+  { name: 'Mathematics 7A/7B', subject: 'Mathematics', classrooms: ['7A', '7B'], description: 'Numbers, algebra and practical problem solving.' },
+  { name: 'Science 7A', subject: 'Science', classrooms: ['7A'], description: 'Hands-on physics, chemistry and biology.' },
+  { name: 'English 8A', subject: 'English', classrooms: ['8A'], description: 'Literature, writing and spoken communication.' },
+  { name: 'Social Studies 8B', subject: 'Social Studies', classrooms: ['8B'], description: 'History, geography and civic life.' }
 ]
 const students: FakeItem[] = studentNames.map(([firstName, lastName], index) => {
   const classIndex = Math.floor(index / 5)
-  const grade = classDefinitions[classIndex]?.grade ?? '7'
+  const classroom = classDefinitions[classIndex]?.classrooms[0] ?? '7A'
   const averageScore = 72 + ((index * 7) % 23)
   return {
     id: `student-${index + 1}`,
@@ -39,8 +39,8 @@ const students: FakeItem[] = studentNames.map(([firstName, lastName], index) => 
     lastName,
     email: `${firstName?.toLowerCase()}.${lastName?.toLowerCase()}@greenwood.test`,
     phone: `+91 98765 ${String(43210 + index).padStart(5, '0')}`,
-    grade,
-    grades: [{ academicYearId: year.id, academicYearName: year.name, grade, isCurrent: true }],
+    classroom,
+    classrooms: [{ academicYearId: year.id, academicYearName: year.name, classroom, isCurrent: true }],
     residentAddress: `${12 + index}, Lake View Road, Bengaluru`,
     guardian: {
       name: `${['Neha', 'Rajiv', 'Meera', 'Suresh'][index % 4]} ${lastName}`,
@@ -96,7 +96,7 @@ const assignments: FakeItem[] = classes.flatMap((classItem, classIndex) =>
       id: `assignment-${classIndex * 4 + assignmentIndex + 1}`,
       name,
       type: 'class',
-      class: { id: classItem.id, name: classItem.name, grade: classItem.grade },
+      class: { id: classItem.id, name: classItem.name },
       dueDate: `2026-08-${String(2 + classIndex * 4 + assignmentIndex).padStart(2, '0')}`,
       totalScore,
       completion: `${4 + (assignmentIndex % 2)} / 5`,
@@ -118,7 +118,7 @@ const exams: FakeItem[] = classes.flatMap((classItem, classIndex) =>
       id: `exam-${classIndex * 4 + examIndex + 1}`,
       name: `${classItem.subject} ${topic}`,
       type: 'exam',
-      class: { id: classItem.id, name: classItem.name, grade: classItem.grade },
+      class: { id: classItem.id, name: classItem.name },
       examDate: `2026-07-${String(8 + classIndex * 4 + examIndex).padStart(2, '0')}`,
       totalScore: 100,
       markedCount: examIndex === 3 ? 4 : 5,
@@ -151,7 +151,7 @@ for (const [studentIndex, student] of students.entries()) {
     id: assignment.id,
     name: assignment.name,
     kind: 'assignment',
-    grade: classDefinitions[classIndex]?.subject,
+    classroom: classDefinitions[classIndex]?.subject,
     score: Math.round(Number(assignment.totalScore) * (0.72 + (studentIndex % 5) * 0.05)),
     totalScore: assignment.totalScore,
     markedAt: '23 Jul 2026'
@@ -160,7 +160,7 @@ for (const [studentIndex, student] of students.entries()) {
     id: exam.id,
     name: exam.name,
     kind: 'exam',
-    grade: classDefinitions[classIndex]?.subject,
+    classroom: classDefinitions[classIndex]?.subject,
     score: examIndex === 3 && studentIndex % 5 === 4 ? null : 74 + ((studentIndex * 3 + examIndex * 5) % 22),
     totalScore: 100,
     markedAt: '20 Jul 2026'
@@ -173,7 +173,7 @@ const users = [
   { id: 'user-2', name: 'Noah Thomas', email: 'noah@example.test', role: 'user', blocked: true, createdAt: '2026-07-18T09:00:00Z' }
 ]
 
-function response(path: string, setupPage: boolean, grade?: string) {
+function response(path: string, setupPage: boolean, classroom?: string) {
   if (path === '/admin/status') return { data: { adminExists: !setupPage } }
   if (path === '/admin/me') return { data: admin }
   if (path.startsWith('/admin/users')) return { data: users, meta: { total: users.length } }
@@ -186,10 +186,17 @@ function response(path: string, setupPage: boolean, grade?: string) {
   const collections: Record<string, Record<string, unknown>[]> = { '/students': students, '/classes': classes, '/assignments': assignments, '/exams': exams }
   for (const [endpoint, items] of Object.entries(collections)) {
     if (path === endpoint) {
-      const filtered = grade
+      const filtered = classroom
         ? items.filter((item) => {
-            const itemGrade = String(item.grade ?? (item.class as { grade?: string } | undefined)?.grade ?? '')
-            return itemGrade.toLowerCase() === grade.toLowerCase()
+            const rooms = item.classrooms
+            if (Array.isArray(rooms)) {
+              return rooms.some((entry) => {
+                const value = typeof entry === 'string' ? entry : String((entry as { classroom?: string }).classroom ?? '')
+                return value.toLowerCase() === classroom.toLowerCase()
+              })
+            }
+            const itemClassroom = String(item.classroom ?? '')
+            return itemClassroom.toLowerCase() === classroom.toLowerCase()
           })
         : items
       return { data: filtered, meta: { total: filtered.length } }
@@ -207,7 +214,7 @@ export async function mockApi(page: Page, setupPage: boolean) {
   await page.route('http://localhost:8080/api/v1/**', async (route: Route) => {
     const url = new URL(route.request().url())
     const path = url.pathname.replace('/api/v1', '')
-    const grade = url.searchParams.get('grade') || undefined
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(response(path, setupPage, grade)) })
+    const classroom = url.searchParams.get('classroom') || undefined
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(response(path, setupPage, classroom)) })
   })
 }

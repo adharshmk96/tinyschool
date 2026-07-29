@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { StudentGrade } from '~/types/api'
+import type { StudentClassroom } from '~/types/api'
 
 type Item = Record<string, unknown>
 
@@ -13,7 +13,7 @@ const props = defineProps<{
   editFields?: Array<{ key: string, label: string, type?: string, options?: string[] }>
   tabs?: Array<{ label: string, value: string, icon: string }>
   activeTab?: string
-  gradeFilter?: boolean
+  classroomFilter?: boolean
 }>()
 
 const route = useRoute()
@@ -23,14 +23,14 @@ const { request } = useApi()
 const editOpen = ref(false)
 const saving = ref(false)
 const form = reactive<Record<string, string>>({})
-const gradeRows = ref<StudentGrade[]>([])
-const grade = ref(props.gradeFilter && route.query.grade ? String(route.query.grade) : undefined)
+const classroomRows = ref<StudentClassroom[]>([])
+const classroom = ref(props.classroomFilter && route.query.classroom ? String(route.query.classroom) : undefined)
 const id = computed(() => String(route.params.id))
 const apiPath = computed(() => {
   const base = `${props.endpoint.replace(/^\/api\/v1/, '')}/${id.value}`
-  if (!props.gradeFilter || !grade.value)
+  if (!props.classroomFilter || !classroom.value)
     return base
-  return `${base}?grade=${encodeURIComponent(grade.value)}`
+  return `${base}?classroom=${encodeURIComponent(classroom.value)}`
 })
 const { data, status, error, refresh } = await useAsyncData(
   `domain-detail-${props.endpoint}-${id.value}`,
@@ -40,14 +40,14 @@ const { data, status, error, refresh } = await useAsyncData(
 const item = computed<Item>(() => data.value?.data ?? {})
 const displayTitle = computed(() => String(item.value.name ?? item.value.fullName ?? (`${item.value.firstName ?? ''} ${item.value.lastName ?? ''}`.trim() || props.title)))
 
-watch(grade, (value) => {
-  if (!props.gradeFilter)
+watch(classroom, (value) => {
+  if (!props.classroomFilter)
     return
   const query = { ...route.query }
   if (value)
-    query.grade = value
+    query.classroom = value
   else
-    delete query.grade
+    delete query.classroom
   router.replace({ query })
 })
 
@@ -67,16 +67,16 @@ function value(key: string) {
 }
 
 function setTab(tab: string) {
-  const query = props.gradeFilter && grade.value ? { grade: grade.value } : undefined
+  const query = props.classroomFilter && classroom.value ? { classroom: classroom.value } : undefined
   router.push({ path: `${props.backTo}/${id.value}/${tab}`, query })
 }
 
 function openEdit() {
-  gradeRows.value = Array.isArray(item.value.grades)
-    ? (item.value.grades as StudentGrade[]).map(row => ({ academicYearId: row.academicYearId, grade: row.grade }))
+  classroomRows.value = Array.isArray(item.value.classrooms)
+    ? (item.value.classrooms as StudentClassroom[]).map(row => ({ academicYearId: row.academicYearId, classroom: row.classroom }))
     : []
   for (const field of props.editFields ?? []) {
-    if (field.type === 'grades')
+    if (field.type === 'classrooms')
       continue
     const current = rawValue(field.key)
     form[field.key] = current === undefined || current === null ? '' : String(current)
@@ -87,8 +87,8 @@ function openEdit() {
 async function saveEdit() {
   const body: Record<string, unknown> = {}
   for (const field of props.editFields ?? []) {
-    if (field.type === 'grades') {
-      body[field.key] = gradeRows.value.filter(row => row.academicYearId && row.grade)
+    if (field.type === 'classrooms') {
+      body[field.key] = classroomRows.value.filter(row => row.academicYearId && row.classroom)
       continue
     }
     body[field.key] = field.type === 'number' ? Number(form[field.key]) : form[field.key]
@@ -186,9 +186,9 @@ async function saveEdit() {
           @update:model-value="setTab(String($event))"
         />
       </div>
-      <GradeFilterMenu
-        v-if="gradeFilter"
-        v-model="grade"
+      <ClassroomFilterMenu
+        v-if="classroomFilter"
+        v-model="classroom"
         class="shrink-0"
       />
     </div>
@@ -215,9 +215,9 @@ async function saveEdit() {
             :key="field.key"
             :label="field.label"
           >
-            <StudentGradesField
-              v-if="field.type === 'grades'"
-              v-model="gradeRows"
+            <StudentClassroomsField
+              v-if="field.type === 'classrooms'"
+              v-model="classroomRows"
             />
             <USelect
               v-else-if="field.options"

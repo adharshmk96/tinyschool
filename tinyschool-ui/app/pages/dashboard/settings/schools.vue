@@ -12,62 +12,62 @@ const modalOpen = ref(false)
 const deleteOpen = ref(false)
 const editingId = ref<string | null>(null)
 const deleting = ref<School | null>(null)
-const form = reactive({ name: '', grades: [] as string[], gradesInUse: [] as string[], newGrade: '' })
+const form = reactive({ name: '', classrooms: [] as string[], classroomsInUse: [] as string[], newClassroom: '' })
 const saving = ref(false)
 const deletingSchool = ref(false)
 
 function openCreate() {
   editingId.value = null
   form.name = ''
-  form.grades = []
-  form.gradesInUse = []
-  form.newGrade = ''
+  form.classrooms = []
+  form.classroomsInUse = []
+  form.newClassroom = ''
   modalOpen.value = true
 }
 
 function openEdit(school: School) {
   editingId.value = school.id
   form.name = school.name
-  form.grades = [...school.grades]
-  form.gradesInUse = [...(school.gradesInUse || [])]
-  form.newGrade = ''
+  form.classrooms = [...school.classrooms]
+  form.classroomsInUse = [...(school.classroomsInUse || [])]
+  form.newClassroom = ''
   modalOpen.value = true
 }
 
-function gradeInUse(grade: string) {
-  return form.gradesInUse.some(item => item.toLowerCase() === grade.toLowerCase())
+function classroomInUse(classroom: string) {
+  return form.classroomsInUse.some(item => item.toLowerCase() === classroom.toLowerCase())
 }
 
-function addGrade() {
-  const grade = form.newGrade.trim()
-  if (!grade) return
-  if (form.grades.some(item => item.toLowerCase() === grade.toLowerCase())) {
-    toast.add({ title: 'Grade already added', color: 'error' })
+function addClassroom() {
+  const classroom = form.newClassroom.trim()
+  if (!classroom) return
+  if (form.classrooms.some(item => item.toLowerCase() === classroom.toLowerCase())) {
+    toast.add({ title: 'Classroom already added', color: 'error' })
     return
   }
-  form.grades.push(grade)
-  form.newGrade = ''
+  form.classrooms.push(classroom)
+  form.newClassroom = ''
 }
 
-function removeGrade(grade: string) {
-  if (gradeInUse(grade)) {
-    toast.add({ title: 'Grade is linked', description: 'Remove linked classes or students before deleting this grade.', color: 'error' })
+function removeClassroom(classroom: string) {
+  if (classroomInUse(classroom)) {
+    toast.add({ title: 'Classroom is linked', description: 'Remove linked classes or students before deleting this classroom.', color: 'error' })
     return
   }
-  form.grades = form.grades.filter(item => item !== grade)
+  form.classrooms = form.classrooms.filter(item => item !== classroom)
 }
 
 async function save() {
   const name = form.name.trim()
-  const grades = form.grades.map(item => item.trim()).filter(Boolean)
-  if (!name || !grades.length) {
-    toast.add({ title: 'School name and grades are required', color: 'error' })
+  const classrooms = form.classrooms.map(item => item.trim()).filter(Boolean)
+  if (!name || !classrooms.length) {
+    toast.add({ title: 'School name and classrooms are required', color: 'error' })
     return
   }
   saving.value = true
   try {
     const existing = schools.value.find(item => item.id === editingId.value) as (School & { isActive?: boolean }) | undefined
-    const body = { name, grades, isActive: existing?.isActive ?? true }
+    const body = { name, classrooms, isActive: existing?.isActive ?? true }
     const response = editingId.value
       ? await patchItem<School>(`/schools/${editingId.value}`, body)
       : await postItem<School>('/schools', body)
@@ -129,7 +129,7 @@ onMounted(async () => {
   <SettingsShell>
     <PageHeading
       title="My schools"
-      description="Manage schools and the grades taught in each."
+      description="Manage schools and the classrooms taught in each."
     >
       <template #actions>
         <UButton
@@ -165,7 +165,7 @@ onMounted(async () => {
               />
             </div>
             <p class="mt-1 text-sm text-muted">
-              Grades: {{ school.grades.join(', ') }}
+              Classrooms: {{ school.classrooms.join(', ') }}
             </p>
           </div>
           <div class="flex gap-1 self-end sm:self-auto">
@@ -203,7 +203,7 @@ onMounted(async () => {
     <UModal
       v-model:open="modalOpen"
       :title="editingId ? 'Edit school' : 'Create school'"
-      description="Add the school name and grades taught."
+      description="Add the school name and classrooms taught."
     >
       <template #body>
         <form
@@ -223,39 +223,39 @@ onMounted(async () => {
             />
           </UFormField>
           <UFormField
-            label="Grades"
-            description="Linked grades cannot be removed while classes or students use them."
+            label="Classrooms"
+            description="Linked classrooms cannot be removed while classes or students use them."
             required
           >
             <div class="space-y-3">
               <div
-                v-if="form.grades.length"
+                v-if="form.classrooms.length"
                 class="flex flex-wrap gap-2"
               >
                 <div
-                  v-for="grade in form.grades"
-                  :key="grade"
+                  v-for="classroom in form.classrooms"
+                  :key="classroom"
                   class="inline-flex items-center gap-1 rounded-md bg-elevated px-2.5 py-1 text-sm"
                 >
-                  <span>{{ grade }}</span>
+                  <span>{{ classroom }}</span>
                   <UButton
-                    :icon="gradeInUse(grade) ? 'i-lucide-lock' : 'i-lucide-x'"
+                    :icon="classroomInUse(classroom) ? 'i-lucide-lock' : 'i-lucide-x'"
                     size="xs"
                     color="neutral"
                     variant="ghost"
                     class="-me-1"
-                    :disabled="gradeInUse(grade)"
-                    :aria-label="gradeInUse(grade) ? `${grade} is linked` : `Remove ${grade}`"
-                    @click.prevent="removeGrade(grade)"
+                    :disabled="classroomInUse(classroom)"
+                    :aria-label="classroomInUse(classroom) ? `${classroom} is linked` : `Remove ${classroom}`"
+                    @click.prevent="removeClassroom(classroom)"
                   />
                 </div>
               </div>
               <div class="flex gap-2">
                 <UInput
-                  v-model="form.newGrade"
+                  v-model="form.newClassroom"
                   class="w-full"
-                  placeholder="Grade 6"
-                  @keydown.enter.prevent="addGrade"
+                  placeholder="10A"
+                  @keydown.enter.prevent="addClassroom"
                 />
                 <UButton
                   type="button"
@@ -263,7 +263,7 @@ onMounted(async () => {
                   label="Add"
                   color="neutral"
                   variant="outline"
-                  @click="addGrade"
+                  @click="addClassroom"
                 />
               </div>
             </div>

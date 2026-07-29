@@ -86,16 +86,16 @@ func (a *App) UpdateSchool(ctx context.Context, id string, input dto.SchoolReque
 	if err != nil {
 		return dto.School{}, err
 	}
-	used, err := a.storage.SchoolGradesInUse(ctx, current.ID)
+	used, err := a.storage.SchoolClassroomsInUse(ctx, current.ID)
 	if err != nil {
 		return dto.School{}, translate(err, "school")
 	}
-	for _, grade := range current.Grades {
-		if containsGrade(item.Grades, grade) {
+	for _, classroom := range current.Classrooms {
+		if containsClassroom(item.Classrooms, classroom) {
 			continue
 		}
-		if containsGrade(used, grade) {
-			return dto.School{}, conflict("grade \"" + grade + "\" cannot be removed because it is linked to classes or students")
+		if containsClassroom(used, classroom) {
+			return dto.School{}, conflict("classroom \"" + classroom + "\" cannot be removed because it is linked to classes or students")
 		}
 	}
 	updated, err := a.storage.UpdateSchool(ctx, item)
@@ -114,14 +114,14 @@ func (a *App) schoolFromInput(id string, input dto.SchoolRequest) (model.School,
 	if input.Name == "" {
 		return model.School{}, validation("name is required")
 	}
-	grades, err := uniqueTrimmed(input.Grades, "grades")
+	classrooms, err := uniqueTrimmed(input.Classrooms, "classrooms")
 	if err != nil {
 		return model.School{}, err
 	}
-	if len(grades) == 0 {
-		return model.School{}, validation("at least one grade is required")
+	if len(classrooms) == 0 {
+		return model.School{}, validation("at least one classroom is required")
 	}
-	return model.School{ID: id, Name: input.Name, Grades: grades, IsActive: input.IsActive}, nil
+	return model.School{ID: id, Name: input.Name, Classrooms: classrooms, IsActive: input.IsActive}, nil
 }
 
 func (a *App) ListAcademicYears(ctx context.Context, input dto.ListOptions) (dto.Page[dto.AcademicYear], error) {
@@ -250,21 +250,21 @@ func (a *App) academicYearFromInput(id string, input dto.AcademicYearRequest) (m
 }
 
 func (a *App) schoolDTO(ctx context.Context, item model.School) (dto.School, error) {
-	grades := append([]string(nil), item.Grades...)
-	if grades == nil {
-		grades = []string{}
+	classrooms := append([]string(nil), item.Classrooms...)
+	if classrooms == nil {
+		classrooms = []string{}
 	}
-	used, err := a.storage.SchoolGradesInUse(ctx, item.ID)
+	used, err := a.storage.SchoolClassroomsInUse(ctx, item.ID)
 	if err != nil {
 		return dto.School{}, translate(err, "school")
 	}
-	inUse := make([]string, 0, len(grades))
-	for _, grade := range grades {
-		if containsGrade(used, grade) {
-			inUse = append(inUse, grade)
+	inUse := make([]string, 0, len(classrooms))
+	for _, classroom := range classrooms {
+		if containsClassroom(used, classroom) {
+			inUse = append(inUse, classroom)
 		}
 	}
-	return dto.School{ID: item.ID, Name: item.Name, Grades: grades, GradesInUse: inUse, IsActive: item.IsActive}, nil
+	return dto.School{ID: item.ID, Name: item.Name, Classrooms: classrooms, ClassroomsInUse: inUse, IsActive: item.IsActive}, nil
 }
 
 func academicYearDTO(item model.AcademicYear) dto.AcademicYear {

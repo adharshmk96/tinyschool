@@ -29,8 +29,8 @@ func (s *Store) SeedUserData(ctx context.Context, email string) error {
 }
 
 var (
-	seedGrades = []string{"Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10"}
-	seedNames  = [][2]string{
+	seedClassrooms = []string{"1A", "2A", "3A", "4A", "5A", "6A", "6B", "7A", "7B", "8A", "9A", "10A", "10B", "10C"}
+	seedNames      = [][2]string{
 		{"Maya", "Patel"}, {"Noah", "Williams"}, {"Aarav", "Shah"}, {"Emma", "Chen"}, {"Liam", "Brown"},
 		{"Olivia", "Martin"}, {"Ethan", "Wilson"}, {"Sophia", "Garcia"}, {"Ravi", "Nair"}, {"Isla", "Fernandes"},
 		{"Arjun", "Mehta"}, {"Ava", "Thompson"}, {"Kabir", "Kapoor"}, {"Mia", "Rodriguez"}, {"Leo", "Anderson"},
@@ -40,8 +40,14 @@ var (
 		{"Finn", "Young"}, {"Saanvi", "Bose"}, {"Oscar", "King"}, {"Ira", "Menon"}, {"Theo", "Scott"},
 		{"Myra", "Jain"}, {"Arthur", "Green"}, {"Tara", "Das"}, {"George", "Baker"}, {"Riya", "Malhotra"},
 	}
-	seedSubjects = []struct{ subject, grade string }{
-		{"Mathematics", "Grade 6"}, {"Science", "Grade 6"}, {"English", "Grade 7"}, {"History", "Grade 7"},
+	seedSubjects = []struct {
+		subject    string
+		classrooms []string
+	}{
+		{"Mathematics", []string{"6A", "6B"}},
+		{"Science", []string{"6A"}},
+		{"English", []string{"7A"}},
+		{"History", []string{"7B"}},
 	}
 	seedAssignmentNames = []string{"Practice Set", "Group Project", "Worksheet", "Research Task"}
 	seedExamSpecs       = []struct{ name, kind string }{
@@ -69,14 +75,14 @@ func seedUserFixtures(tx *gorm.DB, ownerID string) error {
 			Phone:        fmt.Sprintf("+91 98765 %05d", 11001+i),
 			GuardianName: "Guardian of " + name[0],
 		}
-		if err := tx.Omit("Grades").Create(&student).Error; err != nil {
+		if err := tx.Omit("Classrooms").Create(&student).Error; err != nil {
 			return fmt.Errorf("create student: %w", err)
 		}
-		// Students are enrolled ten per class below, so give each the grade of
-		// the class they will land in.
-		grade := seedSubjects[i/10].grade
-		if err := tx.Omit("AcademicYear").Create(&studentGradeRecord{StudentID: id, AcademicYearID: year.ID, Grade: grade}).Error; err != nil {
-			return fmt.Errorf("create student grade: %w", err)
+		// Students are enrolled ten per class below, so give each the first
+		// classroom of the class they will land in.
+		classroom := seedSubjects[i/10].classrooms[0]
+		if err := tx.Omit("AcademicYear").Create(&studentClassroomRecord{StudentID: id, AcademicYearID: year.ID, Classroom: classroom}).Error; err != nil {
+			return fmt.Errorf("create student classroom: %w", err)
 		}
 		students = append(students, student)
 	}
@@ -85,13 +91,17 @@ func seedUserFixtures(tx *gorm.DB, ownerID string) error {
 		classID := seedID("cls")
 		class := classRecord{
 			ID: classID, UserID: ownerID, SchoolID: school.ID, AcademicYearID: year.ID,
-			Name:        fmt.Sprintf("%s %s", spec.subject, spec.grade),
+			Name:        fmt.Sprintf("%s %s", spec.subject, strings.Join(spec.classrooms, "/")),
 			Subject:     spec.subject,
-			Grade:       spec.grade,
-			Description: fmt.Sprintf("Seeded %s class for %s.", strings.ToLower(spec.subject), spec.grade),
+			Description: fmt.Sprintf("Seeded %s class for %s.", strings.ToLower(spec.subject), strings.Join(spec.classrooms, ", ")),
 		}
-		if err := tx.Omit("Students").Create(&class).Error; err != nil {
+		if err := tx.Omit("Classrooms", "Students").Create(&class).Error; err != nil {
 			return fmt.Errorf("create class: %w", err)
+		}
+		for _, classroom := range spec.classrooms {
+			if err := tx.Create(&classClassroomRecord{ClassID: classID, Classroom: classroom}).Error; err != nil {
+				return fmt.Errorf("link class classroom: %w", err)
+			}
 		}
 		// Ten students per class, so all forty are enrolled exactly once.
 		roster := students[i*10 : i*10+10]
@@ -176,8 +186,8 @@ func seedSchool(tx *gorm.DB, ownerID string) (schoolRecord, error) {
 		return schoolRecord{}, fmt.Errorf("find school: %w", err)
 	}
 	school := schoolRecord{ID: seedID("sch"), UserID: ownerID, Name: "Tiny School Academy", IsActive: true}
-	for position, grade := range seedGrades {
-		school.Grades = append(school.Grades, schoolGradeRecord{SchoolID: school.ID, Grade: grade, Position: position})
+	for position, classroom := range seedClassrooms {
+		school.Classrooms = append(school.Classrooms, schoolClassroomRecord{SchoolID: school.ID, Classroom: classroom, Position: position})
 	}
 	if err := tx.Create(&school).Error; err != nil {
 		return schoolRecord{}, fmt.Errorf("create school: %w", err)

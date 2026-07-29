@@ -18,9 +18,9 @@ func userModel(r userRecord) model.User {
 }
 
 func schoolModel(r schoolRecord) model.School {
-	m := model.School{ID: r.ID, Name: r.Name, IsActive: r.IsActive, Grades: make([]string, len(r.Grades))}
-	for i := range r.Grades {
-		m.Grades[i] = r.Grades[i].Grade
+	m := model.School{ID: r.ID, Name: r.Name, IsActive: r.IsActive, Classrooms: make([]string, len(r.Classrooms))}
+	for i := range r.Classrooms {
+		m.Classrooms[i] = r.Classrooms[i].Classroom
 	}
 	return m
 }
@@ -40,23 +40,31 @@ func studentModel(r studentRecord) model.Student {
 		GuardianEmail: r.GuardianEmail, GuardianPhone: r.GuardianPhone,
 		ResidentAddress: r.ResidentAddress, PermanentAddress: r.PermanentAddress,
 	}
-	grades := append([]studentGradeRecord(nil), r.Grades...)
-	sort.Slice(grades, func(i, j int) bool {
-		return grades[i].AcademicYear.StartDate < grades[j].AcademicYear.StartDate
+	classrooms := append([]studentClassroomRecord(nil), r.Classrooms...)
+	sort.Slice(classrooms, func(i, j int) bool {
+		return classrooms[i].AcademicYear.StartDate < classrooms[j].AcademicYear.StartDate
 	})
-	for _, grade := range grades {
-		m.Grades = append(m.Grades, model.StudentGrade{
-			AcademicYearID:   grade.AcademicYearID,
-			AcademicYearName: grade.AcademicYear.Name,
-			Grade:            grade.Grade,
-			IsCurrent:        grade.AcademicYear.IsCurrent,
+	for _, classroom := range classrooms {
+		m.Classrooms = append(m.Classrooms, model.StudentClassroom{
+			AcademicYearID:   classroom.AcademicYearID,
+			AcademicYearName: classroom.AcademicYear.Name,
+			Classroom:        classroom.Classroom,
+			IsCurrent:        classroom.AcademicYear.IsCurrent,
 		})
 	}
 	return m
 }
 
 func classModel(r classRecord) model.Class {
-	m := model.Class{ID: r.ID, SchoolID: r.SchoolID, AcademicYearID: r.AcademicYearID, Name: r.Name, Subject: r.Subject, Grade: r.Grade, Description: r.Description}
+	m := model.Class{
+		ID: r.ID, SchoolID: r.SchoolID, AcademicYearID: r.AcademicYearID,
+		Name: r.Name, Subject: r.Subject, Description: r.Description,
+		Classrooms: make([]string, 0, len(r.Classrooms)),
+	}
+	for _, classroom := range r.Classrooms {
+		m.Classrooms = append(m.Classrooms, classroom.Classroom)
+	}
+	sort.Strings(m.Classrooms)
 	for _, student := range r.Students {
 		m.Students = append(m.Students, studentModel(student))
 	}

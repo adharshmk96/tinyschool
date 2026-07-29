@@ -15,20 +15,31 @@ func (s *Store) ListClasses(ctx context.Context, options storage.ListOptions) ([
 	if options.AcademicYearID != "" {
 		query = query.Where("classes.academic_year_id = ?", options.AcademicYearID)
 	}
-	if options.Grade != "" {
-		query = query.Where("LOWER(classes.grade) = LOWER(?)", options.Grade)
+	if options.Classroom != "" {
+		query = query.Where(`EXISTS (
+			SELECT 1 FROM class_classrooms cc
+			WHERE cc.class_id = classes.id AND LOWER(cc.classroom) = LOWER(?)
+		)`, options.Classroom)
 	}
 	if options.Search != "" {
 		p := contains(options.Search)
-		query = query.Where("LOWER(name) LIKE ? OR LOWER(subject) LIKE ? OR LOWER(grade) LIKE ? OR LOWER(description) LIKE ?", p, p, p, p)
+		query = query.Where(`LOWER(name) LIKE ? OR LOWER(subject) LIKE ? OR LOWER(description) LIKE ?
+			OR EXISTS (SELECT 1 FROM class_classrooms cc WHERE cc.class_id = classes.id AND LOWER(cc.classroom) LIKE ?)`, p, p, p, p)
 	}
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	allowed := map[string]string{"name": "name", "subject": "subject", "grade": "grade", "studentCount": "(SELECT COUNT(*) FROM class_students cs WHERE cs.class_id = classes.id)"}
+	allowed := map[string]string{
+		"name": "name", "subject": "subject",
+		"classroom": "(SELECT MIN(cc.classroom) FROM class_classrooms cc WHERE cc.class_id = classes.id)",
+		"studentCount": "(SELECT COUNT(*) FROM class_students cs WHERE cs.class_id = classes.id)",
+	}
 	var records []classRecord
-	err := paginate(order(query, options, allowed, "name"), options).Preload("Students.Grades.AcademicYear").Find(&records).Error
+	err := paginate(order(query, options, allowed, "name"), options).
+		Preload("Classrooms").
+		Preload("Students.Classrooms.AcademicYear").
+		Find(&records).Error
 	items := make([]model.Class, len(records))
 	for i := range records {
 		items[i] = classModel(records[i])
@@ -38,7 +49,10 @@ func (s *Store) ListClasses(ctx context.Context, options storage.ListOptions) ([
 
 func (s *Store) Class(ctx context.Context, id string) (model.Class, error) {
 	var record classRecord
-	if err := s.db.WithContext(ctx).Preload("Students.Grades.AcademicYear").First(&record, "id = ? AND user_id = ?", id, userID(ctx)).Error; err != nil {
+	if err := s.db.WithContext(ctx).
+		Preload("Classrooms").
+		Preload("Students.Classrooms.AcademicYear").
+		First(&record, "id = ? AND user_id = ?", id, userID(ctx)).Error; err != nil {
 		return model.Class{}, storageError(err)
 	}
 	result := classModel(record)
@@ -113,7 +127,22 @@ func (s *Store) Class(ctx context.Context, id string) (model.Class, error) {
 }
 
 func classRecordFrom(ownerID string, m model.Class) classRecord {
-	return classRecord{ID: m.ID, UserID: ownerID, SchoolID: m.SchoolID, AcademicYearID: m.AcademicYearID, Name: m.Name, Subject: m.Subject, Grade: m.Grade, Description: m.Description}
+	return classRecord{
+		ID: m.ID, UserID: ownerID, SchoolID: m.SchoolID, AcademicYearID: m.AcademicYearID,
+		Name: m.Name, Subject: m.Subject, Description: m.Description,
+	}
+}
+
+func replaceClassClassrooms(tx *gorm.DB, classID string, classrooms []string) error {
+	if err := tx.Where("class_id = ?", classID).Delete(&classClassroomRecord{}).Error; err != nil {
+		return err
+	}
+	for _, classroom := range classrooms {
+		if err := tx.Create(&classClassroomRecord{ClassID: classID, Classroom: classroom}).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func replaceClassStudents(tx *gorm.DB, classID string, studentIDs []string) error {
@@ -130,7 +159,10 @@ func replaceClassStudents(tx *gorm.DB, classID string, studentIDs []string) erro
 
 func (s *Store) CreateClass(ctx context.Context, class model.Class, studentIDs []string) (model.Class, error) {
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(&[]classRecord{classRecordFrom(userID(ctx), class)}).Error; err != nil {
+		if err := tx.Omit("Classrooms", "Students").Create(&[]classRecord{classRecordFrom(userID(ctx), class)}).Error; err != nil {
+			return err
+		}
+		if err := replaceClassClassrooms(tx, class.ID, class.Classrooms); err != nil {
 			return err
 		}
 		return replaceClassStudents(tx, class.ID, studentIDs)
@@ -142,13 +174,16 @@ func (s *Store) UpdateClass(ctx context.Context, class model.Class, studentIDs *
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		result := tx.Model(&classRecord{}).Where("id = ? AND user_id = ?", class.ID, userID(ctx)).Updates(map[string]any{
 			"school_id": class.SchoolID, "academic_year_id": class.AcademicYearID, "name": class.Name,
-			"subject": class.Subject, "grade": class.Grade, "description": class.Description,
+			"subject": class.Subject, "description": class.Description,
 		})
 		if result.Error != nil {
 			return result.Error
 		}
 		if result.RowsAffected == 0 {
 			return gorm.ErrRecordNotFound
+		}
+		if err := replaceClassClassrooms(tx, class.ID, class.Classrooms); err != nil {
+			return err
 		}
 		if studentIDs != nil {
 			return replaceClassStudents(tx, class.ID, *studentIDs)

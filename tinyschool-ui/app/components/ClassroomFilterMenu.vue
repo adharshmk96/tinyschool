@@ -5,29 +5,29 @@ const model = defineModel<string | undefined>({ default: undefined })
 
 const { selectedSchool } = useSchoolContext()
 
-const grades = computed(() => selectedSchool.value?.grades || [])
+const classrooms = computed(() => selectedSchool.value?.classrooms || [])
 
 const items = computed<DropdownMenuItem[][]>(() => [[
   {
-    label: 'Grade',
-    icon: 'i-lucide-graduation-cap',
-    filter: { placeholder: 'Search grades…', icon: 'i-lucide-search' },
+    label: 'Classroom',
+    icon: 'i-lucide-door-open',
+    filter: { placeholder: 'Search classrooms…', icon: 'i-lucide-search' },
     children: [[
       {
-        label: 'All grades',
+        label: 'All classrooms',
         icon: model.value ? undefined : 'i-lucide-check',
         onSelect: () => { model.value = undefined }
       },
-      ...grades.value.map(grade => ({
-        label: grade,
-        icon: model.value?.toLowerCase() === grade.toLowerCase() ? 'i-lucide-check' : undefined,
-        onSelect: () => { model.value = grade }
+      ...classrooms.value.map(classroom => ({
+        label: classroom,
+        icon: model.value?.toLowerCase() === classroom.toLowerCase() ? 'i-lucide-check' : undefined,
+        onSelect: () => { model.value = classroom }
       }))
     ]]
   }
 ]])
 
-const buttonLabel = computed(() => model.value ? `Grade: ${model.value}` : 'Filter')
+const buttonLabel = computed(() => model.value ? `Classroom: ${model.value}` : 'Filter')
 </script>
 
 <template>

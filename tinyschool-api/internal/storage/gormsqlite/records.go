@@ -2,21 +2,22 @@ package gormsqlite
 
 import "time"
 
-func (userRecord) TableName() string              { return "users" }
-func (sessionRecord) TableName() string           { return "sessions" }
-func (schoolRecord) TableName() string            { return "schools" }
-func (schoolGradeRecord) TableName() string       { return "school_grades" }
-func (academicYearRecord) TableName() string      { return "academic_years" }
-func (academicSegmentRecord) TableName() string   { return "academic_segments" }
-func (classRecord) TableName() string             { return "classes" }
-func (classStudentRecord) TableName() string      { return "class_students" }
-func (studentRecord) TableName() string           { return "students" }
-func (studentGradeRecord) TableName() string      { return "student_grades" }
-func (studentLogRecord) TableName() string        { return "student_logs" }
-func (assignmentRecord) TableName() string        { return "assignments" }
-func (assignmentStudentRecord) TableName() string { return "assignment_students" }
-func (examRecord) TableName() string              { return "exams" }
-func (examStudentRecord) TableName() string       { return "exam_students" }
+func (userRecord) TableName() string                 { return "users" }
+func (sessionRecord) TableName() string              { return "sessions" }
+func (schoolRecord) TableName() string               { return "schools" }
+func (schoolClassroomRecord) TableName() string      { return "school_classrooms" }
+func (academicYearRecord) TableName() string         { return "academic_years" }
+func (academicSegmentRecord) TableName() string      { return "academic_segments" }
+func (classRecord) TableName() string                { return "classes" }
+func (classClassroomRecord) TableName() string       { return "class_classrooms" }
+func (classStudentRecord) TableName() string         { return "class_students" }
+func (studentRecord) TableName() string              { return "students" }
+func (studentClassroomRecord) TableName() string     { return "student_classrooms" }
+func (studentLogRecord) TableName() string           { return "student_logs" }
+func (assignmentRecord) TableName() string           { return "assignments" }
+func (assignmentStudentRecord) TableName() string    { return "assignment_students" }
+func (examRecord) TableName() string                 { return "exams" }
+func (examStudentRecord) TableName() string          { return "exam_students" }
 
 type userRecord struct {
 	ID           string `gorm:"primaryKey"`
@@ -38,17 +39,17 @@ type sessionRecord struct {
 }
 
 type schoolRecord struct {
-	ID       string              `gorm:"primaryKey"`
-	UserID   string              `gorm:"not null;default:'';index;uniqueIndex:idx_schools_user_name,priority:1"`
-	Name     string              `gorm:"not null;collate:nocase;uniqueIndex:idx_schools_user_name,priority:2"`
-	IsActive bool                `gorm:"not null"`
-	Grades   []schoolGradeRecord `gorm:"foreignKey:SchoolID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
+	ID         string                   `gorm:"primaryKey"`
+	UserID     string                   `gorm:"not null;default:'';index;uniqueIndex:idx_schools_user_name,priority:1"`
+	Name       string                   `gorm:"not null;collate:nocase;uniqueIndex:idx_schools_user_name,priority:2"`
+	IsActive   bool                     `gorm:"not null"`
+	Classrooms []schoolClassroomRecord  `gorm:"foreignKey:SchoolID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
 }
 
-type schoolGradeRecord struct {
-	SchoolID string `gorm:"primaryKey"`
-	Grade    string `gorm:"primaryKey;collate:nocase"`
-	Position int    `gorm:"not null"`
+type schoolClassroomRecord struct {
+	SchoolID  string `gorm:"primaryKey"`
+	Classroom string `gorm:"primaryKey;collate:nocase"`
+	Position  int    `gorm:"not null"`
 }
 
 type academicYearRecord struct {
@@ -83,26 +84,32 @@ type studentRecord struct {
 	FirstName, LastName, Email, Phone          string
 	GuardianName, GuardianEmail, GuardianPhone string
 	ResidentAddress, PermanentAddress          string
-	Grades                                     []studentGradeRecord `gorm:"foreignKey:StudentID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
+	Classrooms                                 []studentClassroomRecord `gorm:"foreignKey:StudentID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
 }
 
-// studentGradeRecord stores the grade a student sits in for one academic year.
-// Students themselves are never scoped to a year; only their grade is.
-type studentGradeRecord struct {
+// studentClassroomRecord stores the classroom a student sits in for one academic year.
+// Students themselves are never scoped to a year; only their classroom is.
+type studentClassroomRecord struct {
 	StudentID      string             `gorm:"primaryKey"`
 	AcademicYearID string             `gorm:"primaryKey"`
-	Grade          string             `gorm:"not null;collate:nocase"`
+	Classroom      string             `gorm:"not null;collate:nocase"`
 	AcademicYear   academicYearRecord `gorm:"foreignKey:AcademicYearID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
 }
 
 type classRecord struct {
-	ID                                string `gorm:"primaryKey"`
-	UserID                            string `gorm:"not null;default:'';index"`
-	SchoolID, AcademicYearID          string `gorm:"not null;index"`
-	Name, Subject, Grade, Description string
-	School                            schoolRecord       `gorm:"foreignKey:SchoolID;references:ID"`
-	AcademicYear                      academicYearRecord `gorm:"foreignKey:AcademicYearID;references:ID"`
-	Students                          []studentRecord    `gorm:"many2many:class_students;foreignKey:ID;joinForeignKey:ClassID;references:ID;joinReferences:StudentID"`
+	ID                       string `gorm:"primaryKey"`
+	UserID                   string `gorm:"not null;default:'';index"`
+	SchoolID, AcademicYearID string `gorm:"not null;index"`
+	Name, Subject, Description string
+	School                   schoolRecord            `gorm:"foreignKey:SchoolID;references:ID"`
+	AcademicYear             academicYearRecord      `gorm:"foreignKey:AcademicYearID;references:ID"`
+	Classrooms               []classClassroomRecord  `gorm:"foreignKey:ClassID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
+	Students                 []studentRecord         `gorm:"many2many:class_students;foreignKey:ID;joinForeignKey:ClassID;references:ID;joinReferences:StudentID"`
+}
+
+type classClassroomRecord struct {
+	ClassID   string `gorm:"primaryKey"`
+	Classroom string `gorm:"primaryKey;collate:nocase"`
 }
 
 type classStudentRecord struct {

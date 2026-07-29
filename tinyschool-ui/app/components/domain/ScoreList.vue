@@ -12,7 +12,7 @@ const emit = defineEmits<{
 type Person = {
   id: string
   name: string
-  grade: string
+  classroom: string
   date: string
   score: number | null
   total: number
@@ -34,7 +34,7 @@ const people = computed(() => {
     return {
       id: String(item.id ?? index),
       name: String(item.name ?? `Student ${index + 1}`),
-      grade: String(item.grade ?? ''),
+      classroom: String(item.classroom ?? ''),
       date: String(item.completedAt ?? item.markedAt ?? ''),
       score,
       total,
@@ -55,7 +55,7 @@ function scoreEndpoint(person: Person) {
 
 function scoreDetail(person: Person) {
   const score = currentScore(person)
-  const prefix = person.grade ? `${person.grade} · ` : ''
+  const prefix = person.classroom ? `${person.classroom} · ` : ''
   return score === null ? `${prefix}Awaiting score` : `${prefix}${score} / ${person.total}`
 }
 

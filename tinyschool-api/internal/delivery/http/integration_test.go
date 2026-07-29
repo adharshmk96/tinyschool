@@ -72,7 +72,7 @@ func TestSQLiteAuthenticationAndPersistentMutation(t *testing.T) {
 	}
 
 	create := httptest.NewRequest(http.MethodPost, "/api/v1/schools", strings.NewReader(
-		`{"name":"Persistent School","grades":["Grade 1"],"isActive":true}`,
+		`{"name":"Persistent School","classrooms":["1A"],"isActive":true}`,
 	))
 	create.AddCookie(cookies[0])
 	createResponse := httptest.NewRecorder()

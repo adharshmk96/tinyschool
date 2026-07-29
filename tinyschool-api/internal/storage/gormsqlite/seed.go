@@ -40,12 +40,12 @@ func seedFixtures(tx *gorm.DB) error {
 	if err := tx.Create(&schools).Error; err != nil {
 		return err
 	}
-	for schoolID, grades := range map[string][]string{
-		"sch_001": {"Grade 6", "Grade 7", "Grade 8"},
-		"sch_002": {"Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5"},
+	for schoolID, classrooms := range map[string][]string{
+		"sch_001": {"6A", "6B", "7A", "7B", "8A", "10A", "10B", "10C"},
+		"sch_002": {"1A", "2A", "3A", "4A", "5A"},
 	} {
-		for position, grade := range grades {
-			if err := tx.Create(&schoolGradeRecord{SchoolID: schoolID, Grade: grade, Position: position}).Error; err != nil {
+		for position, classroom := range classrooms {
+			if err := tx.Create(&schoolClassroomRecord{SchoolID: schoolID, Classroom: classroom, Position: position}).Error; err != nil {
 				return err
 			}
 		}
@@ -68,29 +68,41 @@ func seedFixtures(tx *gorm.DB) error {
 		return err
 	}
 	students := []studentRecord{
-		studentFixture("stu_001", "Maya", "Patel", "Grade 7", "maya.patel@example.test", "+91 98765 11001", "Rina Patel"),
-		studentFixture("stu_002", "Noah", "Williams", "Grade 7", "noah.williams@example.test", "+91 98765 11002", "Sophie Williams"),
-		studentFixture("stu_003", "Aarav", "Shah", "Grade 7", "aarav.shah@example.test", "+91 98765 11003", "Neel Shah"),
-		studentFixture("stu_004", "Emma", "Chen", "Grade 6", "emma.chen@example.test", "+91 98765 11004", "Wei Chen"),
-		studentFixture("stu_005", "Liam", "Brown", "Grade 6", "liam.brown@example.test", "+91 98765 11005", "Amelia Brown"),
-		studentFixture("stu_006", "Olivia", "Martin", "Grade 8", "olivia.martin@example.test", "+91 98765 11006", "Lucas Martin"),
-		studentFixture("stu_007", "Ethan", "Wilson", "Grade 8", "ethan.wilson@example.test", "+91 98765 11007", "Grace Wilson"),
-		studentFixture("stu_008", "Sophia", "Garcia", "Grade 8", "sophia.garcia@example.test", "+91 98765 11008", "Mateo Garcia"),
+		studentFixture("stu_001", "Maya", "Patel", "7A", "maya.patel@example.test", "+91 98765 11001", "Rina Patel"),
+		studentFixture("stu_002", "Noah", "Williams", "7A", "noah.williams@example.test", "+91 98765 11002", "Sophie Williams"),
+		studentFixture("stu_003", "Aarav", "Shah", "7B", "aarav.shah@example.test", "+91 98765 11003", "Neel Shah"),
+		studentFixture("stu_004", "Emma", "Chen", "6A", "emma.chen@example.test", "+91 98765 11004", "Wei Chen"),
+		studentFixture("stu_005", "Liam", "Brown", "6B", "liam.brown@example.test", "+91 98765 11005", "Amelia Brown"),
+		studentFixture("stu_006", "Olivia", "Martin", "8A", "olivia.martin@example.test", "+91 98765 11006", "Lucas Martin"),
+		studentFixture("stu_007", "Ethan", "Wilson", "8A", "ethan.wilson@example.test", "+91 98765 11007", "Grace Wilson"),
+		studentFixture("stu_008", "Sophia", "Garcia", "8A", "sophia.garcia@example.test", "+91 98765 11008", "Mateo Garcia"),
 	}
-	if err := tx.Omit("Grades").Create(&students).Error; err != nil {
+	if err := tx.Omit("Classrooms").Create(&students).Error; err != nil {
 		return err
 	}
-	if err := seedStudentGrades(tx, students); err != nil {
+	if err := seedStudentClassrooms(tx, students); err != nil {
 		return err
 	}
 	classes := []classRecord{
-		{ID: "cls_math7", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", Name: "Mathematics 7A", Subject: "Mathematics", Grade: "Grade 7", Description: "Core mathematics with an emphasis on algebra and geometry."},
-		{ID: "cls_sci7", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", Name: "Science 7A", Subject: "Science", Grade: "Grade 7", Description: "Hands-on life and physical sciences."},
-		{ID: "cls_eng6", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", Name: "English 6B", Subject: "English", Grade: "Grade 6", Description: "Reading comprehension and creative writing."},
-		{ID: "cls_hist8", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", Name: "History 8A", Subject: "History", Grade: "Grade 8", Description: "World history through primary sources."},
+		{ID: "cls_math7", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", Name: "Mathematics 7", Subject: "Mathematics", Description: "Core mathematics with an emphasis on algebra and geometry."},
+		{ID: "cls_sci7", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", Name: "Science 7A", Subject: "Science", Description: "Hands-on life and physical sciences."},
+		{ID: "cls_eng6", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", Name: "English 6B", Subject: "English", Description: "Reading comprehension and creative writing."},
+		{ID: "cls_hist8", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", Name: "History 8A", Subject: "History", Description: "World history through primary sources."},
 	}
-	if err := tx.Create(&classes).Error; err != nil {
+	if err := tx.Omit("Classrooms", "Students").Create(&classes).Error; err != nil {
 		return err
+	}
+	for classID, rooms := range map[string][]string{
+		"cls_math7": {"7A", "7B"},
+		"cls_sci7":  {"7A"},
+		"cls_eng6":  {"6B"},
+		"cls_hist8": {"8A"},
+	} {
+		for _, classroom := range rooms {
+			if err := tx.Create(&classClassroomRecord{ClassID: classID, Classroom: classroom}).Error; err != nil {
+				return err
+			}
+		}
 	}
 	for classID, ids := range map[string][]string{
 		"cls_math7": {"stu_001", "stu_002", "stu_003"}, "cls_sci7": {"stu_001", "stu_002", "stu_003"},
@@ -121,31 +133,32 @@ func seedFixtures(tx *gorm.DB) error {
 	return tx.Create(&logs).Error
 }
 
-func studentFixture(id, first, last, grade, email, phone, guardian string) studentRecord {
+func studentFixture(id, first, last, classroom, email, phone, guardian string) studentRecord {
 	return studentRecord{
 		ID: id, UserID: "usr_001", SchoolID: "sch_001", FirstName: first, LastName: last,
 		Email: email, Phone: phone, GuardianName: guardian,
-		Grades: []studentGradeRecord{{StudentID: id, AcademicYearID: "ay_2026", Grade: grade}},
+		Classrooms: []studentClassroomRecord{{StudentID: id, AcademicYearID: "ay_2026", Classroom: classroom}},
 	}
 }
 
-// previousGrade steps a "Grade N" label one year back for the prior year rows.
-func previousGrade(grade string) string {
+// previousClassroom steps a "NA" label one year back for the prior year rows.
+func previousClassroom(classroom string) string {
 	var number int
-	if _, err := fmt.Sscanf(grade, "Grade %d", &number); err != nil || number <= 1 {
-		return grade
+	var division string
+	if _, err := fmt.Sscanf(classroom, "%d%s", &number, &division); err != nil || number <= 1 {
+		return classroom
 	}
-	return fmt.Sprintf("Grade %d", number-1)
+	return fmt.Sprintf("%d%s", number-1, division)
 }
 
-// seedStudentGrades records each seeded student in the current year with the
-// grade from their fixture, and one grade lower in the previous year.
-func seedStudentGrades(tx *gorm.DB, students []studentRecord) error {
+// seedStudentClassrooms records each seeded student in the current year with the
+// classroom from their fixture, and one year lower in the previous year.
+func seedStudentClassrooms(tx *gorm.DB, students []studentRecord) error {
 	for _, student := range students {
-		grade := student.Grades[0].Grade
-		rows := []studentGradeRecord{
-			{StudentID: student.ID, AcademicYearID: "ay_2026", Grade: grade},
-			{StudentID: student.ID, AcademicYearID: "ay_2025", Grade: previousGrade(grade)},
+		classroom := student.Classrooms[0].Classroom
+		rows := []studentClassroomRecord{
+			{StudentID: student.ID, AcademicYearID: "ay_2026", Classroom: classroom},
+			{StudentID: student.ID, AcademicYearID: "ay_2025", Classroom: previousClassroom(classroom)},
 		}
 		for _, row := range rows {
 			if err := tx.Omit("AcademicYear").Create(&row).Error; err != nil {

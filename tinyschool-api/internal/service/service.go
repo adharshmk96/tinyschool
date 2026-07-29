@@ -173,7 +173,7 @@ func listOptions(input dto.ListOptions, allowed map[string]bool, defaultSort str
 	return storage.ListOptions{
 		Search: input.Search, Sort: input.Sort, Order: input.Order,
 		AcademicYearID: strings.TrimSpace(input.AcademicYearID),
-		Grade:          strings.TrimSpace(input.Grade),
+		Classroom:      strings.TrimSpace(input.Classroom),
 		Page:           input.Page, PageSize: input.PageSize,
 	}, nil
 }

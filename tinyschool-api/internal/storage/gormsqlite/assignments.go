@@ -12,7 +12,7 @@ import (
 )
 
 func assignmentPreloads(db *gorm.DB) *gorm.DB {
-	return db.Preload("Class").Preload("Students.Student.Grades.AcademicYear")
+	return db.Preload("Class").Preload("Students.Student.Classrooms.AcademicYear")
 }
 
 func (s *Store) ListAssignments(ctx context.Context, options storage.ListOptions) ([]model.Assignment, int64, error) {
@@ -20,18 +20,21 @@ func (s *Store) ListAssignments(ctx context.Context, options storage.ListOptions
 	if options.AcademicYearID != "" {
 		query = query.Where("assignments.academic_year_id = ?", options.AcademicYearID)
 	}
-	if options.Grade != "" {
-		grade := options.Grade
+	if options.Classroom != "" {
+		classroom := options.Classroom
 		yearID := options.AcademicYearID
 		query = query.Where(`
-			EXISTS (SELECT 1 FROM classes c WHERE c.id = assignments.class_id AND LOWER(c.grade) = LOWER(?))
+			EXISTS (
+				SELECT 1 FROM class_classrooms cc
+				WHERE cc.class_id = assignments.class_id AND LOWER(cc.classroom) = LOWER(?)
+			)
 			OR EXISTS (
 				SELECT 1 FROM assignment_students ast
-				JOIN student_grades sg ON sg.student_id = ast.student_id
+				JOIN student_classrooms sc ON sc.student_id = ast.student_id
 				WHERE ast.assignment_id = assignments.id
-				  AND LOWER(sg.grade) = LOWER(?)
-				  AND (? = '' OR sg.academic_year_id = ?)
-			)`, grade, grade, yearID, yearID)
+				  AND LOWER(sc.classroom) = LOWER(?)
+				  AND (? = '' OR sc.academic_year_id = ?)
+			)`, classroom, classroom, yearID, yearID)
 	}
 	if options.Search != "" {
 		p := contains(options.Search)

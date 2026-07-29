@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import type { StudentGrade } from '~/types/api'
+import type { StudentClassroom } from '~/types/api'
 
-const model = defineModel<StudentGrade[]>({ required: true })
+const model = defineModel<StudentClassroom[]>({ required: true })
 const { availableAcademicYears, selectedSchool, selectedYearId } = useSchoolContext()
 
-const gradeOptions = computed(() => selectedSchool.value?.grades || [])
+const classroomOptions = computed(() => selectedSchool.value?.classrooms || [])
 const yearOptions = computed(() => availableAcademicYears.value.map(year => ({
   label: year.isCurrent ? `${year.name} (current)` : year.name,
   value: year.id
@@ -23,7 +23,7 @@ function addRow() {
   const taken = model.value.map(row => row.academicYearId)
   const nextYear = yearOptions.value.find(option => !taken.includes(option.value))
   if (!nextYear) return
-  model.value = [...model.value, { academicYearId: nextYear.value, grade: gradeOptions.value[0] || '' }]
+  model.value = [...model.value, { academicYearId: nextYear.value, classroom: classroomOptions.value[0] || '' }]
 }
 
 function removeRow(index: number) {
@@ -32,7 +32,7 @@ function removeRow(index: number) {
 
 onMounted(() => {
   if (!model.value.length && selectedYearId.value)
-    model.value = [{ academicYearId: selectedYearId.value, grade: gradeOptions.value[0] || '' }]
+    model.value = [{ academicYearId: selectedYearId.value, classroom: classroomOptions.value[0] || '' }]
 })
 </script>
 
@@ -52,17 +52,17 @@ onMounted(() => {
         placeholder="Academic year"
       />
       <USelect
-        v-model="row.grade"
-        :items="gradeOptions"
+        v-model="row.classroom"
+        :items="classroomOptions"
         class="w-full"
-        aria-label="Grade"
-        placeholder="Grade"
+        aria-label="Classroom"
+        placeholder="Classroom"
       />
       <UButton
         icon="i-lucide-x"
         color="neutral"
         variant="ghost"
-        aria-label="Remove grade"
+        aria-label="Remove classroom"
         @click="removeRow(index)"
       />
     </div>
@@ -70,7 +70,7 @@ onMounted(() => {
       v-if="!model.length"
       class="text-sm text-muted"
     >
-      No grade recorded yet. Add one per academic year.
+      No classroom recorded yet. Add one per academic year.
     </p>
     <UButton
       icon="i-lucide-plus"
@@ -78,7 +78,7 @@ onMounted(() => {
       color="neutral"
       variant="outline"
       size="xs"
-      :disabled="model.length >= yearOptions.length"
+      :disabled="!yearOptions.length || model.length >= yearOptions.length"
       @click="addRow"
     />
   </div>

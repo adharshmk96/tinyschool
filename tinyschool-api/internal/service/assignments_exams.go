@@ -31,12 +31,12 @@ func (a *App) GetAssignment(ctx context.Context, id string) (dto.Assignment, err
 	return a.GetAssignmentFiltered(ctx, id, "")
 }
 
-func (a *App) GetAssignmentFiltered(ctx context.Context, id, grade string) (dto.Assignment, error) {
+func (a *App) GetAssignmentFiltered(ctx context.Context, id, classroom string) (dto.Assignment, error) {
 	item, err := a.storage.Assignment(ctx, strings.TrimSpace(id))
 	if err != nil {
 		return dto.Assignment{}, translate(err, "assignment")
 	}
-	return assignmentDTO(item, true, strings.TrimSpace(grade)), nil
+	return assignmentDTO(item, true, strings.TrimSpace(classroom)), nil
 }
 
 func (a *App) CreateAssignment(ctx context.Context, input dto.AssignmentRequest) (dto.Assignment, error) {
@@ -251,12 +251,12 @@ func (a *App) GetExam(ctx context.Context, id string) (dto.Exam, error) {
 	return a.GetExamFiltered(ctx, id, "")
 }
 
-func (a *App) GetExamFiltered(ctx context.Context, id, grade string) (dto.Exam, error) {
+func (a *App) GetExamFiltered(ctx context.Context, id, classroom string) (dto.Exam, error) {
 	item, err := a.storage.Exam(ctx, strings.TrimSpace(id))
 	if err != nil {
 		return dto.Exam{}, translate(err, "exam")
 	}
-	return examDTO(item, true, strings.TrimSpace(grade)), nil
+	return examDTO(item, true, strings.TrimSpace(classroom)), nil
 }
 
 func (a *App) CreateExam(ctx context.Context, input dto.ExamRequest) (dto.Exam, error) {

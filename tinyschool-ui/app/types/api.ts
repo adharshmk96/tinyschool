@@ -47,14 +47,14 @@ export interface UpcomingItem {
 export interface School {
   id: string
   name: string
-  grades: string[]
-  gradesInUse?: string[]
+  classrooms: string[]
+  classroomsInUse?: string[]
 }
 
-export interface StudentGrade {
+export interface StudentClassroom {
   academicYearId: string
   academicYearName?: string
-  grade: string
+  classroom: string
   isCurrent?: boolean
 }
 

@@ -28,7 +28,7 @@ func listOptions(r *http.Request) (dto.ListOptions, error) {
 	return dto.ListOptions{
 		Search:         strings.TrimSpace(query.Get("search")),
 		AcademicYearID: strings.TrimSpace(query.Get("academicYearId")),
-		Grade:          strings.TrimSpace(query.Get("grade")),
+		Classroom:      strings.TrimSpace(query.Get("classroom")),
 		Sort:           strings.TrimSpace(query.Get("sort")),
 		Order:          strings.TrimSpace(query.Get("order")),
 		Page:           page,

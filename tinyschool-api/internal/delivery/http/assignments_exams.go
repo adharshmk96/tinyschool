@@ -20,7 +20,7 @@ func (h *Handler) listAssignments(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getAssignment(w http.ResponseWriter, r *http.Request) {
-	result, err := h.app.GetAssignmentFiltered(r.Context(), r.PathValue("id"), r.URL.Query().Get("grade"))
+	result, err := h.app.GetAssignmentFiltered(r.Context(), r.PathValue("id"), r.URL.Query().Get("classroom"))
 	if err != nil {
 		writeServiceError(h.logger, w, r, err)
 		return
@@ -97,7 +97,7 @@ func (h *Handler) listExams(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getExam(w http.ResponseWriter, r *http.Request) {
-	result, err := h.app.GetExamFiltered(r.Context(), r.PathValue("id"), r.URL.Query().Get("grade"))
+	result, err := h.app.GetExamFiltered(r.Context(), r.PathValue("id"), r.URL.Query().Get("classroom"))
 	if err != nil {
 		writeServiceError(h.logger, w, r, err)
 		return

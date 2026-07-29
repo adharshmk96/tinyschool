@@ -3,7 +3,7 @@ package dto
 type ListOptions struct {
 	Search         string
 	AcademicYearID string
-	Grade          string
+	Classroom      string
 	Sort           string
 	Order          string
 	Page           int
@@ -18,9 +18,9 @@ type Page[T any] struct {
 }
 
 type Reference struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Grade string `json:"grade,omitempty"`
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Classroom string `json:"classroom,omitempty"`
 }
 
 type User struct {
@@ -98,17 +98,17 @@ type UpcomingItem struct {
 }
 
 type School struct {
-	ID           string   `json:"id"`
-	Name         string   `json:"name"`
-	Grades       []string `json:"grades"`
-	GradesInUse  []string `json:"gradesInUse"`
-	IsActive     bool     `json:"isActive"`
+	ID              string   `json:"id"`
+	Name            string   `json:"name"`
+	Classrooms      []string `json:"classrooms"`
+	ClassroomsInUse []string `json:"classroomsInUse"`
+	IsActive        bool     `json:"isActive"`
 }
 
 type SchoolRequest struct {
-	Name     string   `json:"name"`
-	Grades   []string `json:"grades"`
-	IsActive bool     `json:"isActive"`
+	Name       string   `json:"name"`
+	Classrooms []string `json:"classrooms"`
+	IsActive   bool     `json:"isActive"`
 }
 
 type SegmentRequest struct {
@@ -150,7 +150,7 @@ type ClassRequest struct {
 	AcademicYearID string   `json:"academicYearId"`
 	Name           string   `json:"name"`
 	Subject        string   `json:"subject"`
-	Grade          string   `json:"grade"`
+	Classrooms     []string `json:"classrooms"`
 	Description    string   `json:"description"`
 	StudentIDs     []string `json:"studentIds"`
 }
@@ -160,7 +160,7 @@ type UpdateClassRequest struct {
 	AcademicYearID *string   `json:"academicYearId"`
 	Name           *string   `json:"name"`
 	Subject        *string   `json:"subject"`
-	Grade          *string   `json:"grade"`
+	Classrooms     *[]string `json:"classrooms"`
 	Description    *string   `json:"description"`
 	StudentIDs     *[]string `json:"studentIds"`
 }
@@ -215,7 +215,7 @@ type Class struct {
 	AcademicYearID string       `json:"academicYearId"`
 	Name           string       `json:"name"`
 	Subject        string       `json:"subject"`
-	Grade          string       `json:"grade"`
+	Classrooms     []string     `json:"classrooms"`
 	Description    string       `json:"description"`
 	StudentCount   int          `json:"studentCount"`
 	AverageScore   float64      `json:"averageScore"`
@@ -231,41 +231,41 @@ type Guardian struct {
 	Phone string `json:"phone"`
 }
 
-// StudentGradeInput links one academic year to the grade the student sits in.
-type StudentGradeInput struct {
+// StudentClassroomInput links one academic year to the classroom the student sits in.
+type StudentClassroomInput struct {
 	AcademicYearID string `json:"academicYearId"`
-	Grade          string `json:"grade"`
+	Classroom      string `json:"classroom"`
 }
 
-type StudentGrade struct {
+type StudentClassroom struct {
 	AcademicYearID   string `json:"academicYearId"`
 	AcademicYearName string `json:"academicYearName"`
-	Grade            string `json:"grade"`
+	Classroom        string `json:"classroom"`
 	IsCurrent        bool   `json:"isCurrent"`
 }
 
 type StudentRequest struct {
-	SchoolID         string              `json:"schoolId"`
-	FirstName        string              `json:"firstName"`
-	LastName         string              `json:"lastName"`
-	Email            string              `json:"email"`
-	Phone            string              `json:"phone"`
-	Grades           []StudentGradeInput `json:"grades"`
-	Guardian         Guardian            `json:"guardian"`
-	ResidentAddress  string              `json:"residentAddress"`
-	PermanentAddress string              `json:"permanentAddress"`
+	SchoolID         string                   `json:"schoolId"`
+	FirstName        string                   `json:"firstName"`
+	LastName         string                   `json:"lastName"`
+	Email            string                   `json:"email"`
+	Phone            string                   `json:"phone"`
+	Classrooms       []StudentClassroomInput  `json:"classrooms"`
+	Guardian         Guardian                 `json:"guardian"`
+	ResidentAddress  string                   `json:"residentAddress"`
+	PermanentAddress string                   `json:"permanentAddress"`
 }
 
 type UpdateStudentRequest struct {
-	SchoolID         *string              `json:"schoolId"`
-	FirstName        *string              `json:"firstName"`
-	LastName         *string              `json:"lastName"`
-	Email            *string              `json:"email"`
-	Phone            *string              `json:"phone"`
-	Grades           *[]StudentGradeInput `json:"grades"`
-	Guardian         *Guardian            `json:"guardian"`
-	ResidentAddress  *string              `json:"residentAddress"`
-	PermanentAddress *string              `json:"permanentAddress"`
+	SchoolID         *string                   `json:"schoolId"`
+	FirstName        *string                   `json:"firstName"`
+	LastName         *string                   `json:"lastName"`
+	Email            *string                   `json:"email"`
+	Phone            *string                   `json:"phone"`
+	Classrooms       *[]StudentClassroomInput  `json:"classrooms"`
+	Guardian         *Guardian                 `json:"guardian"`
+	ResidentAddress  *string                   `json:"residentAddress"`
+	PermanentAddress *string                   `json:"permanentAddress"`
 }
 
 type StudentLog struct {
@@ -286,25 +286,25 @@ type StudentResult struct {
 }
 
 type Student struct {
-	ID               string          `json:"id"`
-	SchoolID         string          `json:"schoolId"`
-	FirstName        string          `json:"firstName"`
-	LastName         string          `json:"lastName"`
-	FullName         string          `json:"fullName"`
-	Email            string          `json:"email"`
-	Phone            string          `json:"phone"`
-	Grade            string          `json:"grade"`
-	Grades           []StudentGrade  `json:"grades"`
-	Guardian         Guardian        `json:"guardian"`
-	ResidentAddress  string          `json:"residentAddress"`
-	PermanentAddress string          `json:"permanentAddress"`
-	AverageScore     float64         `json:"averageScore"`
-	ClassAverage     float64         `json:"classAverage"`
-	Performance      *Performance    `json:"performance,omitempty"`
-	Behaviour        []StudentLog    `json:"behaviour,omitempty"`
-	Notes            []StudentLog    `json:"notes,omitempty"`
-	Assignments      []StudentResult `json:"assignments,omitempty"`
-	Exams            []StudentResult `json:"exams,omitempty"`
+	ID               string              `json:"id"`
+	SchoolID         string              `json:"schoolId"`
+	FirstName        string              `json:"firstName"`
+	LastName         string              `json:"lastName"`
+	FullName         string              `json:"fullName"`
+	Email            string              `json:"email"`
+	Phone            string              `json:"phone"`
+	Classroom        string              `json:"classroom"`
+	Classrooms       []StudentClassroom  `json:"classrooms"`
+	Guardian         Guardian            `json:"guardian"`
+	ResidentAddress  string              `json:"residentAddress"`
+	PermanentAddress string              `json:"permanentAddress"`
+	AverageScore     float64             `json:"averageScore"`
+	ClassAverage     float64             `json:"classAverage"`
+	Performance      *Performance        `json:"performance,omitempty"`
+	Behaviour        []StudentLog        `json:"behaviour,omitempty"`
+	Notes            []StudentLog        `json:"notes,omitempty"`
+	Assignments      []StudentResult     `json:"assignments,omitempty"`
+	Exams            []StudentResult     `json:"exams,omitempty"`
 }
 
 type BehaviourRequest struct {
@@ -341,7 +341,7 @@ type UpdateAssignmentRequest struct {
 type AssignmentAssignee struct {
 	ID          string   `json:"id"`
 	Name        string   `json:"name"`
-	Grade       string   `json:"grade"`
+	Classroom   string   `json:"classroom"`
 	Score       *float64 `json:"score"`
 	CompletedAt string   `json:"completedAt,omitempty"`
 }
@@ -387,11 +387,11 @@ type UpdateExamRequest struct {
 }
 
 type ExamStudent struct {
-	ID       string   `json:"id"`
-	Name     string   `json:"name"`
-	Grade    string   `json:"grade"`
-	Score    *float64 `json:"score"`
-	MarkedAt string   `json:"markedAt,omitempty"`
+	ID        string   `json:"id"`
+	Name      string   `json:"name"`
+	Classroom string   `json:"classroom"`
+	Score     *float64 `json:"score"`
+	MarkedAt  string   `json:"markedAt,omitempty"`
 }
 
 type Exam struct {

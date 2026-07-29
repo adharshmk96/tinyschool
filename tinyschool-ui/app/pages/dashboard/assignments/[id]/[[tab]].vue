@@ -18,7 +18,7 @@ onMounted(() => {
     back-to="/dashboard/assignments"
     back-label="Assignments"
     icon="i-lucide-clipboard-check"
-    grade-filter
+    classroom-filter
     :fields="[
       { key: 'type', label: 'Type' },
       { key: 'dueDate', label: 'Due date' },

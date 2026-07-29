@@ -32,7 +32,7 @@ const breadcrumbs = computed(() => {
     <AppBreadcrumb :items="breadcrumbs" />
     <PageHeading
       title="Settings"
-      description="Manage your account, schools, grades and academic calendar."
+      description="Manage your account, schools, classrooms and academic calendar."
       eyebrow="Workspace"
     />
     <div class="mt-10 grid gap-8 lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-10">

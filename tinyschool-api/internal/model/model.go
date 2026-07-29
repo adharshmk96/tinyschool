@@ -28,9 +28,9 @@ type Session struct {
 }
 
 type School struct {
-	ID, Name string
-	Grades   []string
-	IsActive bool
+	ID, Name   string
+	Classrooms []string
+	IsActive   bool
 }
 
 type AcademicSegment struct {
@@ -47,36 +47,36 @@ type AcademicYear struct {
 
 type Reference struct{ ID, Name string }
 
-type StudentGrade struct {
-	AcademicYearID, AcademicYearName, Grade string
-	IsCurrent                               bool
+type StudentClassroom struct {
+	AcademicYearID, AcademicYearName, Classroom string
+	IsCurrent                                   bool
 }
 
 type Student struct {
 	ID, SchoolID, FirstName, LastName, Email, Phone string
 	GuardianName, GuardianEmail, GuardianPhone      string
 	ResidentAddress, PermanentAddress               string
-	Grades                                          []StudentGrade
+	Classrooms                                      []StudentClassroom
 	Classes                                         []Reference
 	Logs                                            []StudentLog
 	Assignments                                     []Result
 	Exams                                           []Result
 }
 
-// GradeFor returns the grade recorded for the given academic year. When the
-// student has no entry for that year it falls back to the current year so
-// listings still show a meaningful grade.
-func (s Student) GradeFor(academicYearID string) string {
+// ClassroomFor returns the classroom recorded for the given academic year. When
+// the student has no entry for that year it falls back to the current year so
+// listings still show a meaningful classroom.
+func (s Student) ClassroomFor(academicYearID string) string {
 	if academicYearID != "" {
-		for _, grade := range s.Grades {
-			if grade.AcademicYearID == academicYearID {
-				return grade.Grade
+		for _, classroom := range s.Classrooms {
+			if classroom.AcademicYearID == academicYearID {
+				return classroom.Classroom
 			}
 		}
 	}
-	for _, grade := range s.Grades {
-		if grade.IsCurrent {
-			return grade.Grade
+	for _, classroom := range s.Classrooms {
+		if classroom.IsCurrent {
+			return classroom.Classroom
 		}
 	}
 	return ""
@@ -102,10 +102,11 @@ type Result struct {
 }
 
 type Class struct {
-	ID, SchoolID, AcademicYearID, Name, Subject, Grade, Description string
-	Students                                                        []Student
-	Assignments                                                     []Reference
-	Exams                                                           []Reference
+	ID, SchoolID, AcademicYearID, Name, Subject, Description string
+	Classrooms                                               []string
+	Students                                                 []Student
+	Assignments                                              []Reference
+	Exams                                                    []Reference
 }
 
 type AssignmentStudent struct {

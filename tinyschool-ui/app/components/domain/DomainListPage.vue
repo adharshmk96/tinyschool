@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { StudentGrade } from '~/types/api'
+import type { StudentClassroom } from '~/types/api'
 
 type Item = Record<string, unknown>
 
@@ -10,11 +10,11 @@ const props = defineProps<{
   icon: string
   detailBase: string
   description: string
-  fields: Array<{ key: string, label: string, type?: string, options?: string[] }>
+  fields: Array<{ key: string, label: string, type?: string, options?: string[], multiple?: boolean }>
   cardFields: Array<{ key: string, label: string }>
   sortOptions: Array<{ label: string, value: string }>
   academicYearFilter?: boolean
-  gradeFilter?: boolean
+  classroomFilter?: boolean
 }>()
 
 const route = useRoute()
@@ -34,7 +34,7 @@ const search = ref(String(route.query.search || ''))
 const sort = ref(String(route.query.sort || props.sortOptions[0]?.value || 'name'))
 const order = ref(route.query.order === 'asc' ? 'asc' : 'desc')
 const page = ref(Math.max(1, Number(route.query.page) || 1))
-const grade = ref(props.gradeFilter && route.query.grade ? String(route.query.grade) : undefined)
+const classroom = ref(props.classroomFilter && route.query.classroom ? String(route.query.classroom) : undefined)
 const pageSize = 8
 // The sidebar selector is the only academic year switch in the app.
 const currentYearLabel = computed(() => {
@@ -48,7 +48,7 @@ const query = computed(() => ({
   sort: sort.value,
   order: order.value,
   academicYearId: props.academicYearFilter ? selectedYearId.value || undefined : undefined,
-  grade: props.gradeFilter ? (grade.value || undefined) : undefined,
+  classroom: props.classroomFilter ? (classroom.value || undefined) : undefined,
   page: page.value,
   pageSize
 }))
@@ -57,7 +57,8 @@ const endpointPath = computed(() => props.endpoint.replace(/^\/api\/v1/, ''))
 const classOptions = ref<Array<{ label: string, value: string }>>([])
 const studentOptions = ref<Array<{ label: string, value: string }>>([])
 const selectedStudentIds = ref<string[]>([])
-const gradeRows = ref<StudentGrade[]>([])
+const selectedClassrooms = ref<string[]>([])
+const classroomRows = ref<StudentClassroom[]>([])
 
 if (props.endpoint.endsWith('/assignments') || props.endpoint.endsWith('/exams')) {
   try {
@@ -92,11 +93,11 @@ const { data, status, error, refresh } = await useAsyncData(
 const items = computed(() => Array.isArray(data.value?.data) ? data.value.data : [])
 const total = computed(() => Number(data.value?.meta?.total ?? items.value.length))
 
-watch([search, sort, order, page, selectedYearId, grade], () => {
+watch([search, sort, order, page, selectedYearId, classroom], () => {
   router.replace({
     query: {
       ...(search.value ? { search: search.value } : {}),
-      ...(props.gradeFilter && grade.value ? { grade: grade.value } : {}),
+      ...(props.classroomFilter && classroom.value ? { classroom: classroom.value } : {}),
       sort: sort.value,
       order: order.value,
       ...(page.value > 1 ? { page: String(page.value) } : {})
@@ -104,7 +105,7 @@ watch([search, sort, order, page, selectedYearId, grade], () => {
   })
 })
 
-watch([search, sort, order, selectedYearId, grade], () => {
+watch([search, sort, order, selectedYearId, classroom], () => {
   page.value = 1
 })
 
@@ -138,7 +139,8 @@ function setAssignmentType(type: 'class' | 'individual') {
 function openCreate() {
   editing.value = null
   selectedStudentIds.value = []
-  gradeRows.value = selectedYearId.value ? [{ academicYearId: selectedYearId.value, grade: '' }] : []
+  selectedClassrooms.value = []
+  classroomRows.value = selectedYearId.value ? [{ academicYearId: selectedYearId.value, classroom: '' }] : []
   for (const field of props.fields)
     form[field.key] = ''
   if (props.endpoint.endsWith('/assignments'))
@@ -148,11 +150,14 @@ function openCreate() {
 
 function openEdit(item: Item) {
   editing.value = item
-  gradeRows.value = Array.isArray(item.grades)
-    ? (item.grades as StudentGrade[]).map(row => ({ academicYearId: row.academicYearId, grade: row.grade }))
+  classroomRows.value = Array.isArray(item.classrooms) && item.classrooms[0] && typeof item.classrooms[0] === 'object'
+    ? (item.classrooms as StudentClassroom[]).map(row => ({ academicYearId: row.academicYearId, classroom: row.classroom }))
+    : []
+  selectedClassrooms.value = Array.isArray(item.classrooms) && typeof item.classrooms[0] === 'string'
+    ? [...(item.classrooms as string[])]
     : []
   for (const field of props.fields) {
-    if (field.type === 'grades')
+    if (field.type === 'classrooms' || field.multiple)
       continue
     let fieldValue = value(item, field.key)
     if (field.key === 'type' && props.endpoint.endsWith('/assignments'))
@@ -177,8 +182,12 @@ function mutationBody() {
   const body: Record<string, unknown> = {}
   const creating = !editing.value
   for (const field of props.fields) {
-    if (field.type === 'grades') {
-      body[field.key] = gradeRows.value.filter(row => row.academicYearId && row.grade)
+    if (field.type === 'classrooms') {
+      body[field.key] = classroomRows.value.filter(row => row.academicYearId && row.classroom)
+      continue
+    }
+    if (field.multiple) {
+      body[field.key] = [...selectedClassrooms.value]
       continue
     }
     const raw = form[field.key]?.trim() ?? ''
@@ -315,9 +324,9 @@ async function remove() {
           :label="order === 'asc' ? 'Ascending' : 'Descending'"
           @click="order = order === 'asc' ? 'desc' : 'asc'"
         />
-        <GradeFilterMenu
-          v-if="gradeFilter"
-          v-model="grade"
+        <ClassroomFilterMenu
+          v-if="classroomFilter"
+          v-model="classroom"
         />
       </div>
     </UCard>
@@ -459,9 +468,9 @@ async function remove() {
               : field.label"
             required
           >
-            <StudentGradesField
-              v-if="field.type === 'grades'"
-              v-model="gradeRows"
+            <StudentClassroomsField
+              v-if="field.type === 'classrooms'"
+              v-model="classroomRows"
             />
             <div
               v-else-if="field.key === 'type' && endpoint.endsWith('/assignments')"
@@ -509,6 +518,15 @@ async function remove() {
               searchable
               class="w-full"
               placeholder="Select students"
+            />
+            <USelectMenu
+              v-else-if="field.multiple && field.options"
+              v-model="selectedClassrooms"
+              :items="field.options"
+              multiple
+              searchable
+              class="w-full"
+              placeholder="Select classrooms"
             />
             <USelect
               v-else-if="field.options"

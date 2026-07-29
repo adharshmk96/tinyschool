@@ -131,7 +131,7 @@ func TestSeedUserDataCreatesRealisticScoredData(t *testing.T) {
 	}
 }
 
-func TestStudentGradesFollowAcademicYear(t *testing.T) {
+func TestStudentClassroomsFollowAcademicYear(t *testing.T) {
 	ctx := tenancy.WithUserID(context.Background(), "usr_001")
 	store, err := Open(filepath.Join(t.TempDir(), "school.db"))
 	if err != nil {
@@ -149,11 +149,11 @@ func TestStudentGradesFollowAcademicYear(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := student.GradeFor("ay_2026"); got != "Grade 7" {
-		t.Fatalf("current year grade = %q, want Grade 7", got)
+	if got := student.ClassroomFor("ay_2026"); got != "7A" {
+		t.Fatalf("current year classroom = %q, want 7A", got)
 	}
-	if got := student.GradeFor("ay_2025"); got != "Grade 6" {
-		t.Fatalf("previous year grade = %q, want Grade 6", got)
+	if got := student.ClassroomFor("ay_2025"); got != "6A" {
+		t.Fatalf("previous year classroom = %q, want 6A", got)
 	}
 
 	// Students are not scoped to a year, so listing them is year independent.
@@ -174,7 +174,7 @@ func TestStudentGradesFollowAcademicYear(t *testing.T) {
 		t.Fatalf("expected no classes in the previous year, got %d", classTotal)
 	}
 
-	student.Grades = []model.StudentGrade{{AcademicYearID: "ay_2026", Grade: "Grade 8"}}
+	student.Classrooms = []model.StudentClassroom{{AcademicYearID: "ay_2026", Classroom: "8A"}}
 	if _, err := store.UpdateStudent(ctx, student); err != nil {
 		t.Fatal(err)
 	}
@@ -182,8 +182,8 @@ func TestStudentGradesFollowAcademicYear(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(updated.Grades) != 1 || updated.GradeFor("ay_2026") != "Grade 8" {
-		t.Fatalf("grades were not replaced: %+v", updated.Grades)
+	if len(updated.Classrooms) != 1 || updated.ClassroomFor("ay_2026") != "8A" {
+		t.Fatalf("classrooms were not replaced: %+v", updated.Classrooms)
 	}
 }
 
@@ -222,7 +222,7 @@ func TestClearUserDataDoesNotDeleteAnotherUsersData(t *testing.T) {
 	}
 }
 
-func TestSchoolGradesInUseAndListGradeFilter(t *testing.T) {
+func TestSchoolClassroomsInUseAndListClassroomFilter(t *testing.T) {
 	ctx := tenancy.WithUserID(context.Background(), "usr_001")
 	store, err := Open(filepath.Join(t.TempDir(), "school.db"))
 	if err != nil {
@@ -236,46 +236,53 @@ func TestSchoolGradesInUseAndListGradeFilter(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	used, err := store.SchoolGradesInUse(ctx, "sch_001")
+	used, err := store.SchoolClassroomsInUse(ctx, "sch_001")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(used) == 0 {
-		t.Fatal("expected seeded grades to be in use")
+		t.Fatal("expected seeded classrooms to be in use")
 	}
 
 	classes, total, err := store.ListClasses(ctx, storage.ListOptions{
-		Page: 1, PageSize: 20, AcademicYearID: "ay_2026", Grade: "Grade 7",
+		Page: 1, PageSize: 20, AcademicYearID: "ay_2026", Classroom: "7A",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if total != 2 || len(classes) != 2 {
-		t.Fatalf("grade 7 classes total=%d len=%d, want 2", total, len(classes))
+		t.Fatalf("classroom 7A classes total=%d len=%d, want 2", total, len(classes))
 	}
 	for _, class := range classes {
-		if class.Grade != "Grade 7" {
-			t.Fatalf("unexpected class grade %q", class.Grade)
+		found := false
+		for _, classroom := range class.Classrooms {
+			if classroom == "7A" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("unexpected class classrooms %v", class.Classrooms)
 		}
 	}
 
 	assignments, assignmentTotal, err := store.ListAssignments(ctx, storage.ListOptions{
-		Page: 1, PageSize: 20, AcademicYearID: "ay_2026", Grade: "Grade 6",
+		Page: 1, PageSize: 20, AcademicYearID: "ay_2026", Classroom: "6A",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if assignmentTotal < 1 || len(assignments) < 1 {
-		t.Fatal("expected grade 6 assignments")
+		t.Fatal("expected classroom 6A assignments")
 	}
 
 	exams, examTotal, err := store.ListExams(ctx, storage.ListOptions{
-		Page: 1, PageSize: 20, AcademicYearID: "ay_2026", Grade: "Grade 7",
+		Page: 1, PageSize: 20, AcademicYearID: "ay_2026", Classroom: "7A",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if examTotal < 1 || len(exams) < 1 {
-		t.Fatalf("expected grade 7 exams, got total=%d", examTotal)
+		t.Fatalf("expected classroom 7A exams, got total=%d", examTotal)
 	}
 }

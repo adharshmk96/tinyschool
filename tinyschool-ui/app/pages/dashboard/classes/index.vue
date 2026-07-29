@@ -4,7 +4,7 @@ const { selectedSchool } = useSchoolContext()
 const fields = computed(() => [
   { key: 'name', label: 'Class name' },
   { key: 'subject', label: 'Subject' },
-  { key: 'grade', label: 'Grade', options: selectedSchool.value?.grades || [] },
+  { key: 'classrooms', label: 'Classrooms', options: selectedSchool.value?.classrooms || [], multiple: true },
   { key: 'description', label: 'Description', type: 'textarea' }
 ])
 </script>
@@ -16,17 +16,17 @@ const fields = computed(() => [
     endpoint="/api/v1/classes"
     icon="i-lucide-presentation"
     detail-base="/dashboard/classes"
-    description="Organize classes by subject and grade for the active academic year."
+    description="Organize classes by subject and classroom for the active academic year."
     academic-year-filter
-    grade-filter
+    classroom-filter
     :sort-options="[
       { label: 'Name', value: 'name' },
       { label: 'Subject', value: 'subject' },
-      { label: 'Grade', value: 'grade' }
+      { label: 'Classroom', value: 'classroom' }
     ]"
     :card-fields="[
       { key: 'subject', label: 'Subject' },
-      { key: 'grade', label: 'Grade' },
+      { key: 'classrooms', label: 'Classrooms' },
       { key: 'studentCount', label: 'Students' },
       { key: 'description', label: 'Description' }
     ]"

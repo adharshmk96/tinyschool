@@ -11,7 +11,7 @@ definePageMeta({ layout: 'dashboard' })
     detail-base="/dashboard/exams"
     description="Schedule examinations and track marking progress by class."
     academic-year-filter
-    grade-filter
+    classroom-filter
     :sort-options="[
       { label: 'Exam date', value: 'examDate' },
       { label: 'Name', value: 'name' },
@@ -27,7 +27,7 @@ definePageMeta({ layout: 'dashboard' })
       { key: 'name', label: 'Exam name' },
       { key: 'examDate', label: 'Exam date', type: 'date' },
       { key: 'totalScore', label: 'Total score', type: 'number' },
-      { key: 'class', label: 'Class', options: ['Grade 8 Mathematics', 'Grade 8 Science', 'Grade 9 English'] }
+      { key: 'class', label: 'Class', options: ['Mathematics 7A/7B', 'Science 7A', 'English 8A'] }
     ]"
   />
 </template>

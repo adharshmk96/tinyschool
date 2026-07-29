@@ -5,7 +5,7 @@ const fields = computed(() => [
   { key: 'lastName', label: 'Last name' },
   { key: 'email', label: 'Email', type: 'email' },
   { key: 'phone', label: 'Phone', type: 'tel' },
-  { key: 'grades', label: 'Grade by academic year', type: 'grades' },
+  { key: 'classrooms', label: 'Classroom by academic year', type: 'classrooms' },
   { key: 'guardianName', label: 'Guardian name' },
   { key: 'guardianEmail', label: 'Guardian email', type: 'email' },
   { key: 'guardianPhone', label: 'Guardian phone', type: 'tel' },
@@ -21,16 +21,16 @@ const fields = computed(() => [
     endpoint="/api/v1/students"
     icon="i-lucide-graduation-cap"
     detail-base="/dashboard/students"
-    description="Students stay across academic years — only their grade changes per year."
+    description="Students stay across academic years — only their classroom changes per year."
     :sort-options="[
       { label: 'Name', value: 'name' },
-      { label: 'Grade', value: 'grade' },
+      { label: 'Classroom', value: 'classroom' },
       { label: 'Average score', value: 'averageScore' }
     ]"
     :card-fields="[
       { key: 'email', label: 'Email' },
       { key: 'phone', label: 'Phone' },
-      { key: 'grade', label: 'Grade (current year)' },
+      { key: 'classroom', label: 'Classroom (current year)' },
       { key: 'guardian.name', label: 'Guardian' }
     ]"
     :fields="fields"

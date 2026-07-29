@@ -11,7 +11,7 @@ import (
 
 func (a *App) ListClasses(ctx context.Context, input dto.ListOptions) (dto.Page[dto.Class], error) {
 	options, err := listOptions(input, map[string]bool{
-		"name": true, "subject": true, "grade": true, "studentCount": true,
+		"name": true, "subject": true, "classroom": true, "studentCount": true,
 	}, "name")
 	if err != nil {
 		return dto.Page[dto.Class]{}, err
@@ -31,12 +31,12 @@ func (a *App) GetClass(ctx context.Context, id string) (dto.Class, error) {
 	return a.GetClassFiltered(ctx, id, "")
 }
 
-func (a *App) GetClassFiltered(ctx context.Context, id, grade string) (dto.Class, error) {
+func (a *App) GetClassFiltered(ctx context.Context, id, classroom string) (dto.Class, error) {
 	item, err := a.storage.Class(ctx, strings.TrimSpace(id))
 	if err != nil {
 		return dto.Class{}, translate(err, "class")
 	}
-	return classDTO(item, true, strings.TrimSpace(grade)), nil
+	return classDTO(item, true, strings.TrimSpace(classroom)), nil
 }
 
 func (a *App) CreateClass(ctx context.Context, input dto.ClassRequest) (dto.Class, error) {
@@ -62,7 +62,7 @@ func (a *App) UpdateClass(ctx context.Context, id string, input dto.UpdateClassR
 	}
 	merged := dto.ClassRequest{
 		SchoolID: current.SchoolID, AcademicYearID: current.AcademicYearID, Name: current.Name,
-		Subject: current.Subject, Grade: current.Grade, Description: current.Description,
+		Subject: current.Subject, Classrooms: append([]string(nil), current.Classrooms...), Description: current.Description,
 	}
 	if input.SchoolID != nil {
 		merged.SchoolID = *input.SchoolID
@@ -76,8 +76,8 @@ func (a *App) UpdateClass(ctx context.Context, id string, input dto.UpdateClassR
 	if input.Subject != nil {
 		merged.Subject = *input.Subject
 	}
-	if input.Grade != nil {
-		merged.Grade = *input.Grade
+	if input.Classrooms != nil {
+		merged.Classrooms = *input.Classrooms
 	}
 	if input.Description != nil {
 		merged.Description = *input.Description
@@ -105,7 +105,6 @@ func (a *App) classFromInput(ctx context.Context, id string, input dto.ClassRequ
 	input.AcademicYearID = strings.TrimSpace(input.AcademicYearID)
 	input.Name = strings.TrimSpace(input.Name)
 	input.Subject = strings.TrimSpace(input.Subject)
-	input.Grade = strings.TrimSpace(input.Grade)
 	input.Description = strings.TrimSpace(input.Description)
 	switch {
 	case input.SchoolID == "":
@@ -116,15 +115,22 @@ func (a *App) classFromInput(ctx context.Context, id string, input dto.ClassRequ
 		return model.Class{}, nil, validation("name is required")
 	case input.Subject == "":
 		return model.Class{}, nil, validation("subject is required")
-	case input.Grade == "":
-		return model.Class{}, nil, validation("grade is required")
+	}
+	classrooms, err := uniqueTrimmed(input.Classrooms, "classrooms")
+	if err != nil {
+		return model.Class{}, nil, err
+	}
+	if len(classrooms) == 0 {
+		return model.Class{}, nil, validation("at least one classroom is required")
 	}
 	school, err := a.storage.School(ctx, input.SchoolID)
 	if err != nil {
 		return model.Class{}, nil, translate(err, "school")
 	}
-	if !containsGrade(school.Grades, input.Grade) {
-		return model.Class{}, nil, validation("grade must belong to the selected school")
+	for _, classroom := range classrooms {
+		if !containsClassroom(school.Classrooms, classroom) {
+			return model.Class{}, nil, validation("classroom must belong to the selected school")
+		}
 	}
 	year, err := a.storage.AcademicYear(ctx, input.AcademicYearID)
 	if err != nil {
@@ -148,7 +154,7 @@ func (a *App) classFromInput(ctx context.Context, id string, input dto.ClassRequ
 	}
 	return model.Class{
 		ID: id, SchoolID: input.SchoolID, AcademicYearID: input.AcademicYearID,
-		Name: input.Name, Subject: input.Subject, Grade: input.Grade, Description: input.Description,
+		Name: input.Name, Subject: input.Subject, Classrooms: classrooms, Description: input.Description,
 	}, studentIDs, nil
 }
 
@@ -161,7 +167,7 @@ func optionalIDs(input *[]string, normalized []string) *[]string {
 
 func (a *App) ListStudents(ctx context.Context, input dto.ListOptions) (dto.Page[dto.Student], error) {
 	options, err := listOptions(input, map[string]bool{
-		"name": true, "email": true, "grade": true, "averageScore": true,
+		"name": true, "email": true, "classroom": true, "averageScore": true,
 	}, "name")
 	if err != nil {
 		return dto.Page[dto.Student]{}, err
@@ -222,8 +228,8 @@ func (a *App) UpdateStudent(ctx context.Context, id string, input dto.UpdateStud
 	if input.Phone != nil {
 		merged.Phone = *input.Phone
 	}
-	if input.Grades != nil {
-		merged.Grades = *input.Grades
+	if input.Classrooms != nil {
+		merged.Classrooms = *input.Classrooms
 	}
 	if input.Guardian != nil {
 		merged.Guardian = *input.Guardian
@@ -245,9 +251,9 @@ func (a *App) UpdateStudent(ctx context.Context, id string, input dto.UpdateStud
 	return studentDTO(updated, true), nil
 }
 
-func containsGrade(grades []string, grade string) bool {
-	for _, candidate := range grades {
-		if strings.EqualFold(strings.TrimSpace(candidate), strings.TrimSpace(grade)) {
+func containsClassroom(classrooms []string, classroom string) bool {
+	for _, candidate := range classrooms {
+		if strings.EqualFold(strings.TrimSpace(candidate), strings.TrimSpace(classroom)) {
 			return true
 		}
 	}
@@ -380,10 +386,10 @@ func (a *App) studentFromInput(ctx context.Context, id string, input dto.Student
 		return model.Student{}, validation("firstName is required")
 	case input.LastName == "":
 		return model.Student{}, validation("lastName is required")
-	case len(input.Grades) == 0:
-		return model.Student{}, validation("grades must contain at least one academic year")
+	case len(input.Classrooms) == 0:
+		return model.Student{}, validation("classrooms must contain at least one academic year")
 	}
-	grades, err := a.studentGrades(ctx, input.SchoolID, input.Grades)
+	classrooms, err := a.studentClassrooms(ctx, input.SchoolID, input.Classrooms)
 	if err != nil {
 		return model.Student{}, err
 	}
@@ -399,32 +405,32 @@ func (a *App) studentFromInput(ctx context.Context, id string, input dto.Student
 	}
 	return model.Student{
 		ID: id, SchoolID: input.SchoolID, FirstName: input.FirstName, LastName: input.LastName,
-		Email: input.Email, Phone: input.Phone, Grades: grades,
+		Email: input.Email, Phone: input.Phone, Classrooms: classrooms,
 		GuardianName: input.Guardian.Name, GuardianEmail: input.Guardian.Email, GuardianPhone: input.Guardian.Phone,
 		ResidentAddress: input.ResidentAddress, PermanentAddress: input.PermanentAddress,
 	}, nil
 }
 
-// studentGrades validates one grade per academic year, where every year belongs
-// to the student's school and every grade is offered by that school.
-func (a *App) studentGrades(ctx context.Context, schoolID string, input []dto.StudentGradeInput) ([]model.StudentGrade, error) {
+// studentClassrooms validates one classroom per academic year, where every year belongs
+// to the student's school and every classroom is offered by that school.
+func (a *App) studentClassrooms(ctx context.Context, schoolID string, input []dto.StudentClassroomInput) ([]model.StudentClassroom, error) {
 	school, err := a.storage.School(ctx, schoolID)
 	if err != nil {
 		return nil, translate(err, "school")
 	}
-	result := make([]model.StudentGrade, 0, len(input))
+	result := make([]model.StudentClassroom, 0, len(input))
 	seen := make(map[string]struct{}, len(input))
 	for _, entry := range input {
 		yearID := strings.TrimSpace(entry.AcademicYearID)
-		grade := strings.TrimSpace(entry.Grade)
+		classroom := strings.TrimSpace(entry.Classroom)
 		switch {
 		case yearID == "":
-			return nil, validation("grades.academicYearId is required")
-		case grade == "":
-			return nil, validation("grades.grade is required")
+			return nil, validation("classrooms.academicYearId is required")
+		case classroom == "":
+			return nil, validation("classrooms.classroom is required")
 		}
 		if _, exists := seen[yearID]; exists {
-			return nil, validation("grades must contain each academic year only once")
+			return nil, validation("classrooms must contain each academic year only once")
 		}
 		seen[yearID] = struct{}{}
 		year, findErr := a.storage.AcademicYear(ctx, yearID)
@@ -434,44 +440,48 @@ func (a *App) studentGrades(ctx context.Context, schoolID string, input []dto.St
 		if year.SchoolID != schoolID {
 			return nil, conflict("academic year belongs to a different school")
 		}
-		if !containsGrade(school.Grades, grade) {
-			return nil, validation("grade must belong to the selected school")
+		if !containsClassroom(school.Classrooms, classroom) {
+			return nil, validation("classroom must belong to the selected school")
 		}
-		result = append(result, model.StudentGrade{
-			AcademicYearID: yearID, AcademicYearName: year.Name, Grade: grade, IsCurrent: year.IsCurrent,
+		result = append(result, model.StudentClassroom{
+			AcademicYearID: yearID, AcademicYearName: year.Name, Classroom: classroom, IsCurrent: year.IsCurrent,
 		})
 	}
 	return result, nil
 }
 
 func studentRequest(item model.Student) dto.StudentRequest {
-	grades := make([]dto.StudentGradeInput, len(item.Grades))
-	for index, grade := range item.Grades {
-		grades[index] = dto.StudentGradeInput{AcademicYearID: grade.AcademicYearID, Grade: grade.Grade}
+	classrooms := make([]dto.StudentClassroomInput, len(item.Classrooms))
+	for index, classroom := range item.Classrooms {
+		classrooms[index] = dto.StudentClassroomInput{AcademicYearID: classroom.AcademicYearID, Classroom: classroom.Classroom}
 	}
 	return dto.StudentRequest{
 		SchoolID: item.SchoolID, FirstName: item.FirstName, LastName: item.LastName,
-		Email: item.Email, Phone: item.Phone, Grades: grades,
+		Email: item.Email, Phone: item.Phone, Classrooms: classrooms,
 		Guardian:        dto.Guardian{Name: item.GuardianName, Email: item.GuardianEmail, Phone: item.GuardianPhone},
 		ResidentAddress: item.ResidentAddress, PermanentAddress: item.PermanentAddress,
 	}
 }
 
-func classDTO(item model.Class, detail bool, gradeFilter string) dto.Class {
+func classDTO(item model.Class, detail bool, classroomFilter string) dto.Class {
 	students := item.Students
-	if gradeFilter != "" {
+	if classroomFilter != "" {
 		filtered := make([]model.Student, 0, len(students))
 		for _, student := range students {
-			if strings.EqualFold(strings.TrimSpace(student.GradeFor(item.AcademicYearID)), strings.TrimSpace(gradeFilter)) {
+			if strings.EqualFold(strings.TrimSpace(student.ClassroomFor(item.AcademicYearID)), strings.TrimSpace(classroomFilter)) {
 				filtered = append(filtered, student)
 			}
 		}
 		students = filtered
 	}
 	performance := classPerformance(students)
+	classrooms := append([]string(nil), item.Classrooms...)
+	if classrooms == nil {
+		classrooms = []string{}
+	}
 	result := dto.Class{
 		ID: item.ID, SchoolID: item.SchoolID, AcademicYearID: item.AcademicYearID,
-		Name: item.Name, Subject: item.Subject, Grade: item.Grade, Description: item.Description,
+		Name: item.Name, Subject: item.Subject, Classrooms: classrooms, Description: item.Description,
 		StudentCount: len(item.Students), AverageScore: performance.AverageScore,
 	}
 	if !detail {
@@ -481,10 +491,10 @@ func classDTO(item model.Class, detail bool, gradeFilter string) dto.Class {
 	result.Students = make([]dto.Reference, len(students))
 	for index, student := range students {
 		result.Students[index] = dto.Reference{
-			ID: student.ID, Name: student.FullName(), Grade: student.GradeFor(item.AcademicYearID),
+			ID: student.ID, Name: student.FullName(), Classroom: student.ClassroomFor(item.AcademicYearID),
 		}
 	}
-	if gradeFilter == "" || strings.EqualFold(strings.TrimSpace(item.Grade), strings.TrimSpace(gradeFilter)) {
+	if classroomFilter == "" || containsClassroom(item.Classrooms, classroomFilter) {
 		result.Assignments = referencesDTO(item.Assignments)
 		result.Exams = referencesDTO(item.Exams)
 	} else {
@@ -496,17 +506,17 @@ func classDTO(item model.Class, detail bool, gradeFilter string) dto.Class {
 
 func studentDTO(item model.Student, detail bool) dto.Student {
 	performance := studentPerformance(item)
-	grades := make([]dto.StudentGrade, len(item.Grades))
-	for index, grade := range item.Grades {
-		grades[index] = dto.StudentGrade{
-			AcademicYearID: grade.AcademicYearID, AcademicYearName: grade.AcademicYearName,
-			Grade: grade.Grade, IsCurrent: grade.IsCurrent,
+	classrooms := make([]dto.StudentClassroom, len(item.Classrooms))
+	for index, classroom := range item.Classrooms {
+		classrooms[index] = dto.StudentClassroom{
+			AcademicYearID: classroom.AcademicYearID, AcademicYearName: classroom.AcademicYearName,
+			Classroom: classroom.Classroom, IsCurrent: classroom.IsCurrent,
 		}
 	}
 	result := dto.Student{
 		ID: item.ID, SchoolID: item.SchoolID, FirstName: item.FirstName, LastName: item.LastName,
 		FullName: item.FullName(), Email: item.Email, Phone: item.Phone,
-		Grade: item.GradeFor(""), Grades: grades,
+		Classroom: item.ClassroomFor(""), Classrooms: classrooms,
 		Guardian:        dto.Guardian{Name: item.GuardianName, Email: item.GuardianEmail, Phone: item.GuardianPhone},
 		ResidentAddress: item.ResidentAddress, PermanentAddress: item.PermanentAddress,
 		AverageScore: performance.AverageScore, ClassAverage: performance.ClassAverage,

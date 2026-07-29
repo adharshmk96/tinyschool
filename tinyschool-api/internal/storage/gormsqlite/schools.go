@@ -14,7 +14,7 @@ func (s *Store) ListSchools(ctx context.Context, options storage.ListOptions) ([
 	query := s.db.WithContext(ctx).Model(&schoolRecord{}).Where("schools.user_id = ?", userID(ctx))
 	if options.Search != "" {
 		search := contains(options.Search)
-		query = query.Where("LOWER(name) LIKE ? OR EXISTS (SELECT 1 FROM school_grades g WHERE g.school_id = schools.id AND LOWER(g.grade) LIKE ?)", search, search)
+		query = query.Where("LOWER(name) LIKE ? OR EXISTS (SELECT 1 FROM school_classrooms c WHERE c.school_id = schools.id AND LOWER(c.classroom) LIKE ?)", search, search)
 	}
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
@@ -22,7 +22,7 @@ func (s *Store) ListSchools(ctx context.Context, options storage.ListOptions) ([
 	}
 	var records []schoolRecord
 	err := paginate(order(query, options, map[string]string{"name": "name"}, "name"), options).
-		Preload("Grades", func(db *gorm.DB) *gorm.DB { return db.Order("position") }).Find(&records).Error
+		Preload("Classrooms", func(db *gorm.DB) *gorm.DB { return db.Order("position") }).Find(&records).Error
 	items := make([]model.School, len(records))
 	for i := range records {
 		items[i] = schoolModel(records[i])
@@ -32,30 +32,31 @@ func (s *Store) ListSchools(ctx context.Context, options storage.ListOptions) ([
 
 func (s *Store) School(ctx context.Context, id string) (model.School, error) {
 	var record schoolRecord
-	err := s.db.WithContext(ctx).Preload("Grades", func(db *gorm.DB) *gorm.DB { return db.Order("position") }).First(&record, "id = ? AND user_id = ?", id, userID(ctx)).Error
+	err := s.db.WithContext(ctx).Preload("Classrooms", func(db *gorm.DB) *gorm.DB { return db.Order("position") }).First(&record, "id = ? AND user_id = ?", id, userID(ctx)).Error
 	return schoolModel(record), storageError(err)
 }
 
-// SchoolGradesInUse returns distinct grade strings linked to classes or students for the school.
-func (s *Store) SchoolGradesInUse(ctx context.Context, schoolID string) ([]string, error) {
+// SchoolClassroomsInUse returns distinct classroom strings linked to classes or students for the school.
+func (s *Store) SchoolClassroomsInUse(ctx context.Context, schoolID string) ([]string, error) {
 	ownerID := userID(ctx)
-	var classGrades []string
-	if err := s.db.WithContext(ctx).Model(&classRecord{}).
-		Where("school_id = ? AND user_id = ?", schoolID, ownerID).
-		Distinct().Pluck("grade", &classGrades).Error; err != nil {
+	var classClassrooms []string
+	if err := s.db.WithContext(ctx).Model(&classClassroomRecord{}).
+		Joins("JOIN classes ON classes.id = class_classrooms.class_id").
+		Where("classes.school_id = ? AND classes.user_id = ?", schoolID, ownerID).
+		Distinct().Pluck("class_classrooms.classroom", &classClassrooms).Error; err != nil {
 		return nil, storageError(err)
 	}
-	var studentGrades []string
-	if err := s.db.WithContext(ctx).Model(&studentGradeRecord{}).
-		Joins("JOIN students ON students.id = student_grades.student_id").
+	var studentClassrooms []string
+	if err := s.db.WithContext(ctx).Model(&studentClassroomRecord{}).
+		Joins("JOIN students ON students.id = student_classrooms.student_id").
 		Where("students.school_id = ? AND students.user_id = ?", schoolID, ownerID).
-		Distinct().Pluck("student_grades.grade", &studentGrades).Error; err != nil {
+		Distinct().Pluck("student_classrooms.classroom", &studentClassrooms).Error; err != nil {
 		return nil, storageError(err)
 	}
-	seen := make(map[string]struct{}, len(classGrades)+len(studentGrades))
-	result := make([]string, 0, len(classGrades)+len(studentGrades))
-	for _, grade := range append(classGrades, studentGrades...) {
-		key := strings.ToLower(strings.TrimSpace(grade))
+	seen := make(map[string]struct{}, len(classClassrooms)+len(studentClassrooms))
+	result := make([]string, 0, len(classClassrooms)+len(studentClassrooms))
+	for _, classroom := range append(classClassrooms, studentClassrooms...) {
+		key := strings.ToLower(strings.TrimSpace(classroom))
 		if key == "" {
 			continue
 		}
@@ -63,15 +64,15 @@ func (s *Store) SchoolGradesInUse(ctx context.Context, schoolID string) ([]strin
 			continue
 		}
 		seen[key] = struct{}{}
-		result = append(result, grade)
+		result = append(result, classroom)
 	}
 	return result, nil
 }
 
 func createSchool(tx *gorm.DB, ownerID string, school model.School) error {
 	record := schoolRecord{ID: school.ID, UserID: ownerID, Name: school.Name, IsActive: school.IsActive}
-	for i, grade := range school.Grades {
-		record.Grades = append(record.Grades, schoolGradeRecord{SchoolID: school.ID, Grade: grade, Position: i})
+	for i, classroom := range school.Classrooms {
+		record.Classrooms = append(record.Classrooms, schoolClassroomRecord{SchoolID: school.ID, Classroom: classroom, Position: i})
 	}
 	return tx.Create(&record).Error
 }
@@ -90,11 +91,11 @@ func (s *Store) UpdateSchool(ctx context.Context, school model.School) (model.Sc
 		if result.RowsAffected == 0 {
 			return gorm.ErrRecordNotFound
 		}
-		if err := tx.Where("school_id = ?", school.ID).Delete(&schoolGradeRecord{}).Error; err != nil {
+		if err := tx.Where("school_id = ?", school.ID).Delete(&schoolClassroomRecord{}).Error; err != nil {
 			return err
 		}
-		for i, grade := range school.Grades {
-			if err := tx.Create(&schoolGradeRecord{SchoolID: school.ID, Grade: grade, Position: i}).Error; err != nil {
+		for i, classroom := range school.Classrooms {
+			if err := tx.Create(&schoolClassroomRecord{SchoolID: school.ID, Classroom: classroom, Position: i}).Error; err != nil {
 				return err
 			}
 		}

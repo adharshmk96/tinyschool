@@ -69,9 +69,9 @@ func (s *Store) Close() error {
 
 func (s *Store) AutoMigrate(ctx context.Context) error {
 	err := s.db.WithContext(ctx).AutoMigrate(
-		&userRecord{}, &sessionRecord{}, &schoolRecord{}, &schoolGradeRecord{},
+		&userRecord{}, &sessionRecord{}, &schoolRecord{}, &schoolClassroomRecord{},
 		&academicYearRecord{}, &academicSegmentRecord{}, &studentRecord{},
-		&studentGradeRecord{}, &classRecord{}, &classStudentRecord{}, &studentLogRecord{},
+		&studentClassroomRecord{}, &classRecord{}, &classClassroomRecord{}, &classStudentRecord{}, &studentLogRecord{},
 		&assignmentRecord{}, &assignmentStudentRecord{},
 		&examRecord{}, &examStudentRecord{},
 	)
@@ -97,11 +97,14 @@ func (s *Store) AutoMigrate(ctx context.Context) error {
 	if err := s.backfillStudentGrades(ctx); err != nil {
 		return err
 	}
+	if err := s.backfillClassrooms(ctx); err != nil {
+		return err
+	}
 	return nil
 }
 
 // backfillStudentGrades moves the legacy students.grade column into the
-// per-academic-year table, attaching each grade to the school's current year.
+// per-academic-year student_grades table (then classrooms backfill copies it).
 func (s *Store) backfillStudentGrades(ctx context.Context) error {
 	db := s.db.WithContext(ctx)
 	var legacyColumns int64
@@ -109,6 +112,13 @@ func (s *Store) backfillStudentGrades(ctx context.Context) error {
 		return fmt.Errorf("inspect students table: %w", err)
 	}
 	if legacyColumns == 0 {
+		return nil
+	}
+	var hasStudentGrades int64
+	if err := db.Raw("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'student_grades'").Scan(&hasStudentGrades).Error; err != nil {
+		return fmt.Errorf("inspect student_grades table: %w", err)
+	}
+	if hasStudentGrades == 0 {
 		return nil
 	}
 	err := db.Exec(`
@@ -123,6 +133,60 @@ func (s *Store) backfillStudentGrades(ctx context.Context) error {
 		return fmt.Errorf("backfill student grades: %w", err)
 	}
 	return nil
+}
+
+// backfillClassrooms copies legacy grade tables/columns into classroom tables.
+func (s *Store) backfillClassrooms(ctx context.Context) error {
+	db := s.db.WithContext(ctx)
+	if err := copyTableIfExists(db, "school_grades", `
+		INSERT INTO school_classrooms (school_id, classroom, position)
+		SELECT school_id, grade, position FROM school_grades
+		WHERE NOT EXISTS (
+			SELECT 1 FROM school_classrooms sc
+			WHERE sc.school_id = school_grades.school_id AND LOWER(sc.classroom) = LOWER(school_grades.grade)
+		)
+	`); err != nil {
+		return fmt.Errorf("backfill school classrooms: %w", err)
+	}
+	if err := copyTableIfExists(db, "student_grades", `
+		INSERT INTO student_classrooms (student_id, academic_year_id, classroom)
+		SELECT student_id, academic_year_id, grade FROM student_grades
+		WHERE NOT EXISTS (
+			SELECT 1 FROM student_classrooms sc
+			WHERE sc.student_id = student_grades.student_id AND sc.academic_year_id = student_grades.academic_year_id
+		)
+	`); err != nil {
+		return fmt.Errorf("backfill student classrooms: %w", err)
+	}
+	var hasGradeColumn int64
+	if err := db.Raw("SELECT COUNT(*) FROM pragma_table_info('classes') WHERE name = 'grade'").Scan(&hasGradeColumn).Error; err != nil {
+		return fmt.Errorf("inspect classes.grade: %w", err)
+	}
+	if hasGradeColumn > 0 {
+		if err := db.Exec(`
+			INSERT INTO class_classrooms (class_id, classroom)
+			SELECT id, grade FROM classes
+			WHERE grade IS NOT NULL AND grade <> ''
+			  AND NOT EXISTS (
+				SELECT 1 FROM class_classrooms cc
+				WHERE cc.class_id = classes.id AND LOWER(cc.classroom) = LOWER(classes.grade)
+			  )
+		`).Error; err != nil {
+			return fmt.Errorf("backfill class classrooms: %w", err)
+		}
+	}
+	return nil
+}
+
+func copyTableIfExists(db *gorm.DB, table, insertSQL string) error {
+	var count int64
+	if err := db.Raw("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?", table).Scan(&count).Error; err != nil {
+		return err
+	}
+	if count == 0 {
+		return nil
+	}
+	return db.Exec(insertSQL).Error
 }
 
 func userID(ctx context.Context) string { return tenancy.UserID(ctx) }
@@ -170,7 +234,8 @@ func clearOwnedData(tx *gorm.DB, id string) error {
 		{"DELETE FROM assignment_students WHERE assignment_id IN (SELECT id FROM assignments WHERE user_id = ?)", []any{id}},
 		{"DELETE FROM exam_students WHERE exam_id IN (SELECT id FROM exams WHERE user_id = ?)", []any{id}},
 		{"DELETE FROM student_logs WHERE student_id IN (SELECT id FROM students WHERE user_id = ?)", []any{id}},
-		{"DELETE FROM student_grades WHERE student_id IN (SELECT id FROM students WHERE user_id = ?)", []any{id}},
+		{"DELETE FROM student_classrooms WHERE student_id IN (SELECT id FROM students WHERE user_id = ?)", []any{id}},
+		{"DELETE FROM class_classrooms WHERE class_id IN (SELECT id FROM classes WHERE user_id = ?)", []any{id}},
 		{"DELETE FROM class_students WHERE class_id IN (SELECT id FROM classes WHERE user_id = ?)", []any{id}},
 		{"DELETE FROM exams WHERE user_id = ?", []any{id}},
 		{"DELETE FROM assignments WHERE user_id = ?", []any{id}},
@@ -178,7 +243,7 @@ func clearOwnedData(tx *gorm.DB, id string) error {
 		{"DELETE FROM students WHERE user_id = ?", []any{id}},
 		{"DELETE FROM academic_segments WHERE academic_year_id IN (SELECT id FROM academic_years WHERE user_id = ?)", []any{id}},
 		{"DELETE FROM academic_years WHERE user_id = ?", []any{id}},
-		{"DELETE FROM school_grades WHERE school_id IN (SELECT id FROM schools WHERE user_id = ?)", []any{id}},
+		{"DELETE FROM school_classrooms WHERE school_id IN (SELECT id FROM schools WHERE user_id = ?)", []any{id}},
 		{"DELETE FROM schools WHERE user_id = ?", []any{id}},
 	}
 	for _, step := range steps {

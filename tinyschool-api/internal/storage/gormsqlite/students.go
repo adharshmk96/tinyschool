@@ -10,24 +10,27 @@ import (
 )
 
 func (s *Store) ListStudents(ctx context.Context, options storage.ListOptions) ([]model.Student, int64, error) {
-	// Students are shared across academic years; only the grade shown alongside
+	// Students are shared across academic years; only the classroom shown alongside
 	// them follows the school's current year.
 	query := s.db.WithContext(ctx).Model(&studentRecord{}).
 		Joins("LEFT JOIN academic_years cay ON cay.school_id = students.school_id AND cay.user_id = students.user_id AND cay.is_current = 1").
-		Joins("LEFT JOIN student_grades sg ON sg.student_id = students.id AND sg.academic_year_id = cay.id").
+		Joins("LEFT JOIN student_classrooms sc ON sc.student_id = students.id AND sc.academic_year_id = cay.id").
 		Where("students.user_id = ?", userID(ctx))
 	if options.Search != "" {
 		p := contains(options.Search)
-		query = query.Where("LOWER(first_name || ' ' || last_name) LIKE ? OR LOWER(students.email) LIKE ? OR LOWER(students.phone) LIKE ? OR LOWER(sg.grade) LIKE ? OR LOWER(guardian_name) LIKE ?", p, p, p, p, p)
+		query = query.Where("LOWER(first_name || ' ' || last_name) LIKE ? OR LOWER(students.email) LIKE ? OR LOWER(students.phone) LIKE ? OR LOWER(sc.classroom) LIKE ? OR LOWER(guardian_name) LIKE ?", p, p, p, p, p)
 	}
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	allowed := map[string]string{"name": "first_name || ' ' || last_name", "email": "students.email", "grade": "sg.grade", "averageScore": "(SELECT COALESCE(AVG(score * 100.0 / total_score), 0) FROM assignment_students ast JOIN assignments a ON a.id = ast.assignment_id WHERE ast.student_id = students.id AND ast.score IS NOT NULL)"}
+	allowed := map[string]string{
+		"name": "first_name || ' ' || last_name", "email": "students.email", "classroom": "sc.classroom",
+		"averageScore": "(SELECT COALESCE(AVG(score * 100.0 / total_score), 0) FROM assignment_students ast JOIN assignments a ON a.id = ast.assignment_id WHERE ast.student_id = students.id AND ast.score IS NOT NULL)",
+	}
 	var records []studentRecord
 	err := paginate(order(query, options, allowed, "first_name || ' ' || last_name"), options).
-		Select("students.*").Preload("Grades.AcademicYear").Find(&records).Error
+		Select("students.*").Preload("Classrooms.AcademicYear").Find(&records).Error
 	items := make([]model.Student, len(records))
 	for i := range records {
 		items[i] = studentModel(records[i])
@@ -41,7 +44,7 @@ func preloadStudent(db *gorm.DB) *gorm.DB {
 
 func (s *Store) Student(ctx context.Context, id string) (model.Student, error) {
 	var record studentRecord
-	if err := s.db.WithContext(ctx).Preload("Grades.AcademicYear").First(&record, "id = ? AND user_id = ?", id, userID(ctx)).Error; err != nil {
+	if err := s.db.WithContext(ctx).Preload("Classrooms.AcademicYear").First(&record, "id = ? AND user_id = ?", id, userID(ctx)).Error; err != nil {
 		return model.Student{}, storageError(err)
 	}
 	result := studentModel(record)
@@ -92,12 +95,12 @@ func studentRecordFrom(ownerID string, m model.Student) studentRecord {
 	return studentRecord{ID: m.ID, UserID: ownerID, SchoolID: m.SchoolID, FirstName: m.FirstName, LastName: m.LastName, Email: m.Email, Phone: m.Phone, GuardianName: m.GuardianName, GuardianEmail: m.GuardianEmail, GuardianPhone: m.GuardianPhone, ResidentAddress: m.ResidentAddress, PermanentAddress: m.PermanentAddress}
 }
 
-func replaceStudentGrades(tx *gorm.DB, studentID string, grades []model.StudentGrade) error {
-	if err := tx.Where("student_id = ?", studentID).Delete(&studentGradeRecord{}).Error; err != nil {
+func replaceStudentClassrooms(tx *gorm.DB, studentID string, classrooms []model.StudentClassroom) error {
+	if err := tx.Where("student_id = ?", studentID).Delete(&studentClassroomRecord{}).Error; err != nil {
 		return err
 	}
-	for _, grade := range grades {
-		row := studentGradeRecord{StudentID: studentID, AcademicYearID: grade.AcademicYearID, Grade: grade.Grade}
+	for _, classroom := range classrooms {
+		row := studentClassroomRecord{StudentID: studentID, AcademicYearID: classroom.AcademicYearID, Classroom: classroom.Classroom}
 		if err := tx.Omit("AcademicYear").Create(&row).Error; err != nil {
 			return err
 		}
@@ -107,10 +110,10 @@ func replaceStudentGrades(tx *gorm.DB, studentID string, grades []model.StudentG
 
 func (s *Store) CreateStudent(ctx context.Context, student model.Student) (model.Student, error) {
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Omit("Grades").Create(&[]studentRecord{studentRecordFrom(userID(ctx), student)}).Error; err != nil {
+		if err := tx.Omit("Classrooms").Create(&[]studentRecord{studentRecordFrom(userID(ctx), student)}).Error; err != nil {
 			return err
 		}
-		return replaceStudentGrades(tx, student.ID, student.Grades)
+		return replaceStudentClassrooms(tx, student.ID, student.Classrooms)
 	})
 	return student, storageError(err)
 }
@@ -130,7 +133,7 @@ func (s *Store) UpdateStudent(ctx context.Context, student model.Student) (model
 		if result.RowsAffected == 0 {
 			return storage.ErrNotFound
 		}
-		return replaceStudentGrades(tx, student.ID, student.Grades)
+		return replaceStudentClassrooms(tx, student.ID, student.Classrooms)
 	})
 	if err != nil {
 		return model.Student{}, storageError(err)
