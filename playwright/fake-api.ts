@@ -2,7 +2,7 @@ import type { Page, Route } from '@playwright/test'
 
 type FakeItem = { id: string, name: string, [key: string]: unknown }
 
-const school = { id: 'school-1', name: 'Greenwood Academy', classrooms: ['6A', '7A', '7B', '8A', '8B', '9A'], classroomsInUse: ['6A', '7A', '8A'] }
+const school = { id: 'school-1', name: 'Greenwood Academy', classrooms: ['8A', '8B', '8C', '9A', '9B', '9C', '10A', '10B', '10C'], classroomsInUse: ['8A', '8B', '9A', '10A'] }
 const year = {
   id: 'year-1',
   schoolId: school.id,
@@ -23,14 +23,14 @@ const studentNames = [
   ['Myra', 'Iyer'], ['Atharv', 'Kulkarni'], ['Zoya', 'Ali'], ['Dev', 'Malhotra'], ['Saanvi', 'Jain']
 ]
 const classDefinitions = [
-  { name: 'Mathematics 7A/7B', subject: 'Mathematics', classrooms: ['7A', '7B'], description: 'Numbers, algebra and practical problem solving.' },
-  { name: 'Science 7A', subject: 'Science', classrooms: ['7A'], description: 'Hands-on physics, chemistry and biology.' },
-  { name: 'English 8A', subject: 'English', classrooms: ['8A'], description: 'Literature, writing and spoken communication.' },
-  { name: 'Social Studies 8B', subject: 'Social Studies', classrooms: ['8B'], description: 'History, geography and civic life.' }
+  { name: 'Grade 8 Mathematics', subject: 'Mathematics', classrooms: ['8A', '8B'], description: 'Numbers, algebra and practical problem solving.' },
+  { name: 'Grade 8 Science', subject: 'Science', classrooms: ['8A', '8B', '8C'], description: 'Hands-on physics, chemistry and biology.' },
+  { name: 'Grade 9 English', subject: 'English', classrooms: ['9A', '9B'], description: 'Literature, writing and spoken communication.' },
+  { name: 'Grade 10 History', subject: 'History', classrooms: ['10A', '10B'], description: 'World history through primary sources.' }
 ]
 const students: FakeItem[] = studentNames.map(([firstName, lastName], index) => {
   const classIndex = Math.floor(index / 5)
-  const classroom = classDefinitions[classIndex]?.classrooms[0] ?? '7A'
+  const classroom = classDefinitions[classIndex]?.classrooms[0] ?? '8A'
   const averageScore = 72 + ((index * 7) % 23)
   return {
     id: `student-${index + 1}`,

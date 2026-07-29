@@ -149,11 +149,11 @@ func TestStudentClassroomsFollowAcademicYear(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := student.ClassroomFor("ay_2026"); got != "7A" {
-		t.Fatalf("current year classroom = %q, want 7A", got)
+	if got := student.ClassroomFor("ay_2026"); got != "8A" {
+		t.Fatalf("current year classroom = %q, want 8A", got)
 	}
-	if got := student.ClassroomFor("ay_2025"); got != "6A" {
-		t.Fatalf("previous year classroom = %q, want 6A", got)
+	if got := student.ClassroomFor("ay_2025"); got != "7A" {
+		t.Fatalf("previous year classroom = %q, want 7A", got)
 	}
 
 	// Students are not scoped to a year, so listing them is year independent.
@@ -174,7 +174,7 @@ func TestStudentClassroomsFollowAcademicYear(t *testing.T) {
 		t.Fatalf("expected no classes in the previous year, got %d", classTotal)
 	}
 
-	student.Classrooms = []model.StudentClassroom{{AcademicYearID: "ay_2026", Classroom: "8A"}}
+	student.Classrooms = []model.StudentClassroom{{AcademicYearID: "ay_2026", Classroom: "9A"}}
 	if _, err := store.UpdateStudent(ctx, student); err != nil {
 		t.Fatal(err)
 	}
@@ -182,7 +182,7 @@ func TestStudentClassroomsFollowAcademicYear(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(updated.Classrooms) != 1 || updated.ClassroomFor("ay_2026") != "8A" {
+	if len(updated.Classrooms) != 1 || updated.ClassroomFor("ay_2026") != "9A" {
 		t.Fatalf("classrooms were not replaced: %+v", updated.Classrooms)
 	}
 }
@@ -245,18 +245,18 @@ func TestSchoolClassroomsInUseAndListClassroomFilter(t *testing.T) {
 	}
 
 	classes, total, err := store.ListClasses(ctx, storage.ListOptions{
-		Page: 1, PageSize: 20, AcademicYearID: "ay_2026", Classroom: "7A",
+		Page: 1, PageSize: 20, AcademicYearID: "ay_2026", Classroom: "8A",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if total != 2 || len(classes) != 2 {
-		t.Fatalf("classroom 7A classes total=%d len=%d, want 2", total, len(classes))
+		t.Fatalf("classroom 8A classes total=%d len=%d, want 2", total, len(classes))
 	}
 	for _, class := range classes {
 		found := false
 		for _, classroom := range class.Classrooms {
-			if classroom == "7A" {
+			if classroom == "8A" {
 				found = true
 				break
 			}
@@ -267,22 +267,22 @@ func TestSchoolClassroomsInUseAndListClassroomFilter(t *testing.T) {
 	}
 
 	assignments, assignmentTotal, err := store.ListAssignments(ctx, storage.ListOptions{
-		Page: 1, PageSize: 20, AcademicYearID: "ay_2026", Classroom: "6A",
+		Page: 1, PageSize: 20, AcademicYearID: "ay_2026", Classroom: "9A",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if assignmentTotal < 1 || len(assignments) < 1 {
-		t.Fatal("expected classroom 6A assignments")
+		t.Fatal("expected classroom 9A assignments")
 	}
 
 	exams, examTotal, err := store.ListExams(ctx, storage.ListOptions{
-		Page: 1, PageSize: 20, AcademicYearID: "ay_2026", Classroom: "7A",
+		Page: 1, PageSize: 20, AcademicYearID: "ay_2026", Classroom: "8A",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if examTotal < 1 || len(exams) < 1 {
-		t.Fatalf("expected classroom 7A exams, got total=%d", examTotal)
+		t.Fatalf("expected classroom 8A exams, got total=%d", examTotal)
 	}
 }

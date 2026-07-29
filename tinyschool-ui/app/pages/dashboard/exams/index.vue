@@ -27,7 +27,7 @@ definePageMeta({ layout: 'dashboard' })
       { key: 'name', label: 'Exam name' },
       { key: 'examDate', label: 'Exam date', type: 'date' },
       { key: 'totalScore', label: 'Total score', type: 'number' },
-      { key: 'class', label: 'Class', options: ['Mathematics 7A/7B', 'Science 7A', 'English 8A'] }
+      { key: 'class', label: 'Class', options: ['Grade 8 Mathematics', 'Grade 8 Science', 'Grade 9 English'] }
     ]"
   />
 </template>

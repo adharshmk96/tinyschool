@@ -29,7 +29,7 @@ func (s *Store) SeedUserData(ctx context.Context, email string) error {
 }
 
 var (
-	seedClassrooms = []string{"1A", "2A", "3A", "4A", "5A", "6A", "6B", "7A", "7B", "8A", "9A", "10A", "10B", "10C"}
+	seedClassrooms = []string{"8A", "8B", "8C", "9A", "9B", "9C", "10A", "10B", "10C"}
 	seedNames      = [][2]string{
 		{"Maya", "Patel"}, {"Noah", "Williams"}, {"Aarav", "Shah"}, {"Emma", "Chen"}, {"Liam", "Brown"},
 		{"Olivia", "Martin"}, {"Ethan", "Wilson"}, {"Sophia", "Garcia"}, {"Ravi", "Nair"}, {"Isla", "Fernandes"},
@@ -42,12 +42,13 @@ var (
 	}
 	seedSubjects = []struct {
 		subject    string
+		grade      int
 		classrooms []string
 	}{
-		{"Mathematics", []string{"6A", "6B"}},
-		{"Science", []string{"6A"}},
-		{"English", []string{"7A"}},
-		{"History", []string{"7B"}},
+		{"Mathematics", 8, []string{"8A", "8B"}},
+		{"Science", 8, []string{"8A", "8B", "8C"}},
+		{"English", 9, []string{"9A", "9B"}},
+		{"History", 10, []string{"10A", "10B", "10C"}},
 	}
 	seedAssignmentNames = []string{"Practice Set", "Group Project", "Worksheet", "Research Task"}
 	seedExamSpecs       = []struct{ name, kind string }{
@@ -78,9 +79,9 @@ func seedUserFixtures(tx *gorm.DB, ownerID string) error {
 		if err := tx.Omit("Classrooms").Create(&student).Error; err != nil {
 			return fmt.Errorf("create student: %w", err)
 		}
-		// Students are enrolled ten per class below, so give each the first
-		// classroom of the class they will land in.
-		classroom := seedSubjects[i/10].classrooms[0]
+		// Students are enrolled ten per class below; cycle through that class's classrooms.
+		rooms := seedSubjects[i/10].classrooms
+		classroom := rooms[i%len(rooms)]
 		if err := tx.Omit("AcademicYear").Create(&studentClassroomRecord{StudentID: id, AcademicYearID: year.ID, Classroom: classroom}).Error; err != nil {
 			return fmt.Errorf("create student classroom: %w", err)
 		}
@@ -91,9 +92,9 @@ func seedUserFixtures(tx *gorm.DB, ownerID string) error {
 		classID := seedID("cls")
 		class := classRecord{
 			ID: classID, UserID: ownerID, SchoolID: school.ID, AcademicYearID: year.ID,
-			Name:        fmt.Sprintf("%s %s", spec.subject, strings.Join(spec.classrooms, "/")),
+			Name:        fmt.Sprintf("Grade %d %s", spec.grade, spec.subject),
 			Subject:     spec.subject,
-			Description: fmt.Sprintf("Seeded %s class for %s.", strings.ToLower(spec.subject), strings.Join(spec.classrooms, ", ")),
+			Description: fmt.Sprintf("Seeded Grade %d %s for classrooms %s.", spec.grade, strings.ToLower(spec.subject), strings.Join(spec.classrooms, ", ")),
 		}
 		if err := tx.Omit("Classrooms", "Students").Create(&class).Error; err != nil {
 			return fmt.Errorf("create class: %w", err)

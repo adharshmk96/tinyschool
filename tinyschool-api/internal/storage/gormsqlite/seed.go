@@ -41,8 +41,8 @@ func seedFixtures(tx *gorm.DB) error {
 		return err
 	}
 	for schoolID, classrooms := range map[string][]string{
-		"sch_001": {"6A", "6B", "7A", "7B", "8A", "10A", "10B", "10C"},
-		"sch_002": {"1A", "2A", "3A", "4A", "5A"},
+		"sch_001": {"8A", "8B", "8C", "9A", "9B", "9C", "10A", "10B", "10C"},
+		"sch_002": {"8A", "8B", "8C", "9A", "9B", "9C", "10A", "10B", "10C"},
 	} {
 		for position, classroom := range classrooms {
 			if err := tx.Create(&schoolClassroomRecord{SchoolID: schoolID, Classroom: classroom, Position: position}).Error; err != nil {
@@ -68,14 +68,14 @@ func seedFixtures(tx *gorm.DB) error {
 		return err
 	}
 	students := []studentRecord{
-		studentFixture("stu_001", "Maya", "Patel", "7A", "maya.patel@example.test", "+91 98765 11001", "Rina Patel"),
-		studentFixture("stu_002", "Noah", "Williams", "7A", "noah.williams@example.test", "+91 98765 11002", "Sophie Williams"),
-		studentFixture("stu_003", "Aarav", "Shah", "7B", "aarav.shah@example.test", "+91 98765 11003", "Neel Shah"),
-		studentFixture("stu_004", "Emma", "Chen", "6A", "emma.chen@example.test", "+91 98765 11004", "Wei Chen"),
-		studentFixture("stu_005", "Liam", "Brown", "6B", "liam.brown@example.test", "+91 98765 11005", "Amelia Brown"),
-		studentFixture("stu_006", "Olivia", "Martin", "8A", "olivia.martin@example.test", "+91 98765 11006", "Lucas Martin"),
-		studentFixture("stu_007", "Ethan", "Wilson", "8A", "ethan.wilson@example.test", "+91 98765 11007", "Grace Wilson"),
-		studentFixture("stu_008", "Sophia", "Garcia", "8A", "sophia.garcia@example.test", "+91 98765 11008", "Mateo Garcia"),
+		studentFixture("stu_001", "Maya", "Patel", "8A", "maya.patel@example.test", "+91 98765 11001", "Rina Patel"),
+		studentFixture("stu_002", "Noah", "Williams", "8A", "noah.williams@example.test", "+91 98765 11002", "Sophie Williams"),
+		studentFixture("stu_003", "Aarav", "Shah", "8B", "aarav.shah@example.test", "+91 98765 11003", "Neel Shah"),
+		studentFixture("stu_004", "Emma", "Chen", "9A", "emma.chen@example.test", "+91 98765 11004", "Wei Chen"),
+		studentFixture("stu_005", "Liam", "Brown", "9B", "liam.brown@example.test", "+91 98765 11005", "Amelia Brown"),
+		studentFixture("stu_006", "Olivia", "Martin", "10A", "olivia.martin@example.test", "+91 98765 11006", "Lucas Martin"),
+		studentFixture("stu_007", "Ethan", "Wilson", "10A", "ethan.wilson@example.test", "+91 98765 11007", "Grace Wilson"),
+		studentFixture("stu_008", "Sophia", "Garcia", "10B", "sophia.garcia@example.test", "+91 98765 11008", "Mateo Garcia"),
 	}
 	if err := tx.Omit("Classrooms").Create(&students).Error; err != nil {
 		return err
@@ -84,19 +84,19 @@ func seedFixtures(tx *gorm.DB) error {
 		return err
 	}
 	classes := []classRecord{
-		{ID: "cls_math7", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", Name: "Mathematics 7", Subject: "Mathematics", Description: "Core mathematics with an emphasis on algebra and geometry."},
-		{ID: "cls_sci7", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", Name: "Science 7A", Subject: "Science", Description: "Hands-on life and physical sciences."},
-		{ID: "cls_eng6", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", Name: "English 6B", Subject: "English", Description: "Reading comprehension and creative writing."},
-		{ID: "cls_hist8", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", Name: "History 8A", Subject: "History", Description: "World history through primary sources."},
+		{ID: "cls_math8", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", Name: "Grade 8 Mathematics", Subject: "Mathematics", Description: "Core mathematics with an emphasis on algebra and geometry."},
+		{ID: "cls_sci8", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", Name: "Grade 8 Science", Subject: "Science", Description: "Hands-on life and physical sciences."},
+		{ID: "cls_eng9", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", Name: "Grade 9 English", Subject: "English", Description: "Reading comprehension and creative writing."},
+		{ID: "cls_hist10", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", Name: "Grade 10 History", Subject: "History", Description: "World history through primary sources."},
 	}
 	if err := tx.Omit("Classrooms", "Students").Create(&classes).Error; err != nil {
 		return err
 	}
 	for classID, rooms := range map[string][]string{
-		"cls_math7": {"7A", "7B"},
-		"cls_sci7":  {"7A"},
-		"cls_eng6":  {"6B"},
-		"cls_hist8": {"8A"},
+		"cls_math8":  {"8A", "8B"},
+		"cls_sci8":   {"8A", "8B", "8C"},
+		"cls_eng9":   {"9A", "9B"},
+		"cls_hist10": {"10A", "10B"},
 	} {
 		for _, classroom := range rooms {
 			if err := tx.Create(&classClassroomRecord{ClassID: classID, Classroom: classroom}).Error; err != nil {
@@ -105,8 +105,8 @@ func seedFixtures(tx *gorm.DB) error {
 		}
 	}
 	for classID, ids := range map[string][]string{
-		"cls_math7": {"stu_001", "stu_002", "stu_003"}, "cls_sci7": {"stu_001", "stu_002", "stu_003"},
-		"cls_eng6": {"stu_004", "stu_005"}, "cls_hist8": {"stu_006", "stu_007", "stu_008"},
+		"cls_math8": {"stu_001", "stu_002", "stu_003"}, "cls_sci8": {"stu_001", "stu_002", "stu_003"},
+		"cls_eng9": {"stu_004", "stu_005"}, "cls_hist10": {"stu_006", "stu_007", "stu_008"},
 	} {
 		for _, id := range ids {
 			if err := tx.Create(&classStudentRecord{ClassID: classID, StudentID: id}).Error; err != nil {
@@ -171,16 +171,16 @@ func seedStudentClassrooms(tx *gorm.DB, students []studentRecord) error {
 
 func seedAssignments(tx *gorm.DB) error {
 	classIDs := map[string]*string{}
-	for _, value := range []string{"cls_math7", "cls_sci7", "cls_eng6", "cls_hist8"} {
+	for _, value := range []string{"cls_math8", "cls_sci8", "cls_eng9", "cls_hist10"} {
 		id := value
 		classIDs[value] = &id
 	}
 	records := []assignmentRecord{
-		{ID: "asg_001", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", Name: "Algebra Practice", Type: "class", DueDate: "2026-08-02", TotalScore: 20, ClassID: classIDs["cls_math7"]},
-		{ID: "asg_002", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", Name: "Plant Cell Model", Type: "class", DueDate: "2026-08-08", TotalScore: 30, ClassID: classIDs["cls_sci7"]},
-		{ID: "asg_003", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", Name: "Short Story Draft", Type: "class", DueDate: "2026-08-10", TotalScore: 25, ClassID: classIDs["cls_eng6"]},
+		{ID: "asg_001", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", Name: "Algebra Practice", Type: "class", DueDate: "2026-08-02", TotalScore: 20, ClassID: classIDs["cls_math8"]},
+		{ID: "asg_002", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", Name: "Plant Cell Model", Type: "class", DueDate: "2026-08-08", TotalScore: 30, ClassID: classIDs["cls_sci8"]},
+		{ID: "asg_003", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", Name: "Short Story Draft", Type: "class", DueDate: "2026-08-10", TotalScore: 25, ClassID: classIDs["cls_eng9"]},
 		{ID: "asg_004", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", Name: "Geometry Project", Type: "individual", DueDate: "2026-08-18", TotalScore: 50},
-		{ID: "asg_005", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", Name: "Ancient Civilizations Essay", Type: "class", DueDate: "2026-08-22", TotalScore: 40, ClassID: classIDs["cls_hist8"]},
+		{ID: "asg_005", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", Name: "Ancient Civilizations Essay", Type: "class", DueDate: "2026-08-22", TotalScore: 40, ClassID: classIDs["cls_hist10"]},
 		{ID: "asg_006", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", Name: "Reading Reflection", Type: "individual", DueDate: "2026-07-30", TotalScore: 10},
 	}
 	if err := tx.Create(&records).Error; err != nil {
@@ -214,9 +214,9 @@ func seedAssignments(tx *gorm.DB) error {
 
 func seedExams(tx *gorm.DB) error {
 	records := []examRecord{
-		{ID: "exam_001", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", ClassID: "cls_math7", Name: "Mathematics Midterm", Type: "midterm", ExamDate: "2026-08-15", TotalScore: 100},
-		{ID: "exam_002", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", ClassID: "cls_sci7", Name: "Science Quiz", Type: "quiz", ExamDate: "2026-08-20", TotalScore: 30},
-		{ID: "exam_003", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", ClassID: "cls_eng6", Name: "English Assessment", Type: "assessment", ExamDate: "2026-08-24", TotalScore: 50},
+		{ID: "exam_001", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", ClassID: "cls_math8", Name: "Mathematics Midterm", Type: "midterm", ExamDate: "2026-08-15", TotalScore: 100},
+		{ID: "exam_002", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", ClassID: "cls_sci8", Name: "Science Quiz", Type: "quiz", ExamDate: "2026-08-20", TotalScore: 30},
+		{ID: "exam_003", UserID: "usr_001", SchoolID: "sch_001", AcademicYearID: "ay_2026", ClassID: "cls_eng9", Name: "English Assessment", Type: "assessment", ExamDate: "2026-08-24", TotalScore: 50},
 	}
 	if err := tx.Create(&records).Error; err != nil {
 		return err
