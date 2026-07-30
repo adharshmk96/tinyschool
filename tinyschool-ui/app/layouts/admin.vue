@@ -31,7 +31,6 @@ async function logout() {
       color: 'error'
     })
   } finally {
-    useCookie(adminAuthCookieName).value = null
     currentAdmin.value = null
     logoutPending.value = false
     await navigateTo('/admin/login')

@@ -26,7 +26,6 @@ async function submit() {
       email: form.email.trim(),
       password: form.password
     })
-    adminMarkerCookie().value = 'true'
     useState<boolean | null>('admin-exists').value = true
     toast.add({ title: 'Administrator created', description: 'You are signed in to the back office.', color: 'success' })
     await navigateTo('/admin')

@@ -10,6 +10,7 @@ API_HOST="${TINYSCHOOL_API_HOST:-127.0.0.1}"
 API_PORT="${TINYSCHOOL_API_PORT:-8080}"
 UI_HOST="${TINYSCHOOL_UI_HOST:-127.0.0.1}"
 UI_PORT="${TINYSCHOOL_UI_PORT:-3000}"
+PUBLIC_HOST="${TINYSCHOOL_PUBLIC_HOST:-localhost}"
 
 is_running() {
   local pid_file="$1"
@@ -92,9 +93,9 @@ start_service \
   "${RUN_DIR}/ui.log" \
   "${UI_PID_FILE}" \
   env \
-    NUXT_PUBLIC_API_BASE="http://${API_HOST}:${API_PORT}/api/v1" \
+    NUXT_PUBLIC_API_BASE="http://${PUBLIC_HOST}:${API_PORT}/api/v1" \
     NUXT_PUBLIC_APP_VERSION="${TINYSCHOOL_APP_VERSION:-$(git -C "${ROOT_DIR}" describe --tags --always 2>/dev/null || echo dev)}" \
     bun run dev --host "${UI_HOST}" --port "${UI_PORT}"
 
-echo "Tiny School is starting at http://${UI_HOST}:${UI_PORT}"
+echo "Tiny School is starting at http://${PUBLIC_HOST}:${UI_PORT}"
 echo "Logs: ${RUN_DIR}"

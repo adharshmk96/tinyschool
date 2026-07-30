@@ -1,11 +1,9 @@
-import type { ApiCollection, ApiItem, AdminStatus } from '~/types/api'
+import type { AdminUser, ApiCollection, ApiItem, AdminStatus } from '~/types/api'
 
 interface AdminRequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body?: Record<string, unknown>
 }
-
-export const adminAuthCookieName = 'tiny-school-admin'
 
 /**
  * The back office talks to the same API with its own session cookie, so it
@@ -34,7 +32,6 @@ export function useAdminApi() {
         await rawRequest('/refresh', { method: 'POST' })
         return await rawRequest<T>(path, options)
       } catch {
-        useCookie(adminAuthCookieName).value = null
         if (import.meta.client) await navigateTo('/admin/login')
         throw error
       }
@@ -64,8 +61,21 @@ export async function fetchAdminStatus() {
   return response.data
 }
 
-export function adminMarkerCookie() {
-  return useCookie(adminAuthCookieName, { sameSite: 'lax', maxAge: 60 * 60 * 24 })
+/** Validates the real server-side admin session used by protected API routes. */
+export async function fetchAdminSession() {
+  const config = useRuntimeConfig()
+  const baseURL = String(config.public.apiBase).replace(/\/$/, '')
+  const headers = import.meta.server ? useRequestHeaders(['cookie']) : undefined
+
+  try {
+    const response = await $fetch<ApiItem<AdminUser>>(`${baseURL}/admin/me`, {
+      credentials: 'include',
+      headers
+    })
+    return response.data
+  } catch {
+    return null
+  }
 }
 
 function apiErrorStatus(error: unknown) {

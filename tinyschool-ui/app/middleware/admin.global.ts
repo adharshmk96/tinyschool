@@ -22,7 +22,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (!adminExists.value)
     return to.path === setupPath ? undefined : navigateTo(setupPath)
 
-  const authenticated = useCookie(adminAuthCookieName).value === 'true'
+  const authenticated = await fetchAdminSession()
 
   if (to.path === setupPath)
     return navigateTo(authenticated ? '/admin' : loginPath)
@@ -30,6 +30,6 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (to.path === loginPath)
     return authenticated ? navigateTo('/admin') : undefined
 
-  if (!authenticated)
+  if (authenticated === null)
     return navigateTo({ path: loginPath, query: { redirect: to.fullPath } })
 })

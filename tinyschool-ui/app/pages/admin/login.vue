@@ -15,7 +15,6 @@ async function submit() {
   pending.value = true
   try {
     await postItem<AdminUser>('/login', { email: form.email.trim(), password: form.password })
-    adminMarkerCookie().value = 'true'
     toast.add({ title: 'Welcome back', description: 'You are signed in to the back office.', color: 'success' })
     await navigateTo(typeof route.query.redirect === 'string' ? route.query.redirect : '/admin')
   } catch (error) {
