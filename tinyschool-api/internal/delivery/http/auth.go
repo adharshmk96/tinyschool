@@ -103,6 +103,33 @@ func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// forgotPassword always answers 202 so the response cannot reveal whether the
+// address belongs to an account.
+func (h *Handler) forgotPassword(w http.ResponseWriter, r *http.Request) {
+	input, ok := decodeBody[dto.ForgotPasswordRequest](w, r)
+	if !ok {
+		return
+	}
+	if err := h.app.RequestPasswordReset(r.Context(), input); err != nil {
+		writeServiceError(h.logger, w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusAccepted)
+}
+
+func (h *Handler) resetPassword(w http.ResponseWriter, r *http.Request) {
+	input, ok := decodeBody[dto.ResetPasswordRequest](w, r)
+	if !ok {
+		return
+	}
+	if err := h.app.ResetPassword(r.Context(), input); err != nil {
+		h.writeAuthError(w, r, err)
+		return
+	}
+	clearSessionCookie(w)
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
 	user, err := h.app.Me(r.Context(), requestIdentity(r).UserID)
 	if err != nil {

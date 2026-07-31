@@ -49,6 +49,15 @@ type PasswordRequest struct {
 	NewPassword     string `json:"newPassword"`
 }
 
+type ForgotPasswordRequest struct {
+	Email string `json:"email"`
+}
+
+type ResetPasswordRequest struct {
+	Token       string `json:"token"`
+	NewPassword string `json:"newPassword"`
+}
+
 // AdminUser is the back-office view of an account. It carries the moderation
 // fields the school-facing User deliberately hides.
 type AdminUser struct {

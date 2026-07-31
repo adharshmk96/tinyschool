@@ -15,6 +15,8 @@ const (
 	defaultDatabasePath    = "tinyschool.db"
 	defaultShutdownTimeout = 10 * time.Second
 	defaultSessionDuration = 24 * time.Hour
+	defaultAppBaseURL      = "http://localhost:3000"
+	defaultResetTokenTTL   = time.Hour
 )
 
 type Config struct {
@@ -23,15 +25,21 @@ type Config struct {
 	ShutdownTimeout time.Duration
 	JWTSecret       string
 	SessionDuration time.Duration
+	// AppBaseURL is the public origin of the web app. Links mailed (for now,
+	// logged) to users are built from it.
+	AppBaseURL         string
+	ResetTokenDuration time.Duration
 }
 
 func Default() Config {
 	return Config{
-		Address:         environmentOrDefault("TINYSCHOOL_API_ADDRESS", defaultAddress),
-		DatabasePath:    environmentOrDefault("TINYSCHOOL_DB_PATH", defaultDatabasePath),
-		ShutdownTimeout: defaultShutdownTimeout,
-		JWTSecret:       os.Getenv("TINYSCHOOL_JWT_SECRET"),
-		SessionDuration: defaultSessionDuration,
+		Address:            environmentOrDefault("TINYSCHOOL_API_ADDRESS", defaultAddress),
+		DatabasePath:       environmentOrDefault("TINYSCHOOL_DB_PATH", defaultDatabasePath),
+		ShutdownTimeout:    defaultShutdownTimeout,
+		JWTSecret:          os.Getenv("TINYSCHOOL_JWT_SECRET"),
+		SessionDuration:    defaultSessionDuration,
+		AppBaseURL:         environmentOrDefault("TINYSCHOOL_APP_BASE_URL", defaultAppBaseURL),
+		ResetTokenDuration: defaultResetTokenTTL,
 	}
 }
 
@@ -50,6 +58,12 @@ func (c Config) Validate() error {
 	}
 	if c.SessionDuration <= 0 {
 		return fmt.Errorf("session duration must be greater than zero")
+	}
+	if strings.TrimSpace(c.AppBaseURL) == "" {
+		return fmt.Errorf("app base URL must not be empty")
+	}
+	if c.ResetTokenDuration <= 0 {
+		return fmt.Errorf("reset token duration must be greater than zero")
 	}
 	return nil
 }

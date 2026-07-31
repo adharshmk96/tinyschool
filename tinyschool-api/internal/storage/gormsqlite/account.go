@@ -156,6 +156,49 @@ func (s *Store) RevokeOtherSessions(ctx context.Context, userID, exceptSessionID
 	return nil
 }
 
+func (s *Store) CreatePasswordResetToken(ctx context.Context, token model.PasswordResetToken) (model.PasswordResetToken, error) {
+	record := passwordResetRecord{
+		ID: token.ID, UserID: token.UserID, TokenHash: token.TokenHash,
+		ExpiresAt: token.ExpiresAt, UsedAt: token.UsedAt, CreatedAt: token.CreatedAt,
+	}
+	if err := s.db.WithContext(ctx).Create(&record).Error; err != nil {
+		return model.PasswordResetToken{}, storageError(err)
+	}
+	return token, nil
+}
+
+func (s *Store) PasswordResetTokenByHash(ctx context.Context, hash string) (model.PasswordResetToken, error) {
+	var record passwordResetRecord
+	if err := s.db.WithContext(ctx).First(&record, "token_hash = ?", hash).Error; err != nil {
+		return model.PasswordResetToken{}, storageError(err)
+	}
+	return model.PasswordResetToken{
+		ID: record.ID, UserID: record.UserID, TokenHash: record.TokenHash,
+		ExpiresAt: record.ExpiresAt, UsedAt: record.UsedAt, CreatedAt: record.CreatedAt,
+	}, nil
+}
+
+func (s *Store) UsePasswordResetToken(ctx context.Context, id string, usedAt time.Time) error {
+	result := s.db.WithContext(ctx).Model(&passwordResetRecord{}).
+		Where("id = ? AND used_at IS NULL", id).Update("used_at", usedAt)
+	if result.Error != nil {
+		return fmt.Errorf("use password reset token: %w", storageError(result.Error))
+	}
+	if result.RowsAffected == 0 {
+		return storage.ErrNotFound
+	}
+	return nil
+}
+
+func (s *Store) InvalidateUserPasswordResetTokens(ctx context.Context, userID string, usedAt time.Time) error {
+	err := s.db.WithContext(ctx).Model(&passwordResetRecord{}).
+		Where("user_id = ? AND used_at IS NULL", userID).Update("used_at", usedAt).Error
+	if err != nil {
+		return fmt.Errorf("invalidate password reset tokens: %w", storageError(err))
+	}
+	return nil
+}
+
 func (s *Store) Overview(ctx context.Context) (model.Overview, error) {
 	var overview model.Overview
 	for table, destination := range map[string]*int64{

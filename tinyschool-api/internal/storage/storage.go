@@ -40,6 +40,12 @@ type Storage interface {
 	Session(context.Context, string) (model.Session, error)
 	RevokeSession(context.Context, string, time.Time) error
 	RevokeOtherSessions(ctx context.Context, userID, exceptSessionID string, revokedAt time.Time) error
+	CreatePasswordResetToken(context.Context, model.PasswordResetToken) (model.PasswordResetToken, error)
+	PasswordResetTokenByHash(context.Context, string) (model.PasswordResetToken, error)
+	UsePasswordResetToken(ctx context.Context, id string, usedAt time.Time) error
+	// InvalidateUserPasswordResetTokens marks every outstanding token for the
+	// user as used, so issuing or spending one retires the rest.
+	InvalidateUserPasswordResetTokens(ctx context.Context, userID string, usedAt time.Time) error
 	ClearUserData(context.Context) error
 	ExportUserData(context.Context) (model.Dataset, error)
 	// ReplaceUserData clears everything the caller owns and writes the dataset

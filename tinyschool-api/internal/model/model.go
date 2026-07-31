@@ -27,6 +27,15 @@ type Session struct {
 	CreatedAt  time.Time
 }
 
+// PasswordResetToken stores only the hash of the token that was handed out, so
+// a leaked database cannot be used to reset anybody's password.
+type PasswordResetToken struct {
+	ID, UserID, TokenHash string
+	ExpiresAt             time.Time
+	UsedAt                *time.Time
+	CreatedAt             time.Time
+}
+
 type School struct {
 	ID, Name   string
 	Classrooms []string

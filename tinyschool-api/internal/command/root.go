@@ -31,11 +31,13 @@ func NewRootCommand() *cobra.Command {
 		Args:          cobra.NoArgs,
 		RunE: func(command *cobra.Command, _ []string) error {
 			cfg := config.Config{
-				Address:         values.GetString("address"),
-				DatabasePath:    values.GetString("database"),
-				ShutdownTimeout: values.GetDuration("shutdown-timeout"),
-				JWTSecret:       values.GetString("jwt-secret"),
-				SessionDuration: values.GetDuration("session-duration"),
+				Address:            values.GetString("address"),
+				DatabasePath:       values.GetString("database"),
+				ShutdownTimeout:    values.GetDuration("shutdown-timeout"),
+				JWTSecret:          values.GetString("jwt-secret"),
+				SessionDuration:    values.GetDuration("session-duration"),
+				AppBaseURL:         values.GetString("app-base-url"),
+				ResetTokenDuration: values.GetDuration("reset-token-duration"),
 			}
 			if err := cfg.Validate(); err != nil {
 				return err
@@ -63,6 +65,9 @@ func NewRootCommand() *cobra.Command {
 				store,
 				service.WithJWTSecret([]byte(secret)),
 				service.WithSessionDuration(cfg.SessionDuration),
+				service.WithAppBaseURL(cfg.AppBaseURL),
+				service.WithResetTokenDuration(cfg.ResetTokenDuration),
+				service.WithLogger(logger),
 			)
 			return server.New(cfg.Address, cfg.ShutdownTimeout, app, logger).Run(command.Context())
 		},
@@ -74,15 +79,19 @@ func NewRootCommand() *cobra.Command {
 	flags.Duration("shutdown-timeout", defaults.ShutdownTimeout, "graceful shutdown timeout")
 	flags.String("jwt-secret", defaults.JWTSecret, "JWT signing secret (at least 32 bytes)")
 	flags.Duration("session-duration", defaults.SessionDuration, "authenticated session duration")
+	flags.String("app-base-url", defaults.AppBaseURL, "public web app origin used to build password reset links")
+	flags.Duration("reset-token-duration", defaults.ResetTokenDuration, "password reset token lifetime")
 
 	values.SetEnvPrefix("TINYSCHOOL")
 	values.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 	values.AutomaticEnv()
 	for key, environment := range map[string]string{
-		"address":          "TINYSCHOOL_API_ADDRESS",
-		"database":         "TINYSCHOOL_DB_PATH",
-		"jwt-secret":       "TINYSCHOOL_JWT_SECRET",
-		"session-duration": "TINYSCHOOL_SESSION_DURATION",
+		"address":              "TINYSCHOOL_API_ADDRESS",
+		"database":             "TINYSCHOOL_DB_PATH",
+		"jwt-secret":           "TINYSCHOOL_JWT_SECRET",
+		"session-duration":     "TINYSCHOOL_SESSION_DURATION",
+		"app-base-url":         "TINYSCHOOL_APP_BASE_URL",
+		"reset-token-duration": "TINYSCHOOL_RESET_TOKEN_DURATION",
 	} {
 		if err := values.BindEnv(key, environment); err != nil {
 			panic(fmt.Sprintf("bind %s: %v", environment, err))

@@ -31,7 +31,7 @@ useSeoMeta({ title: 'Admin SMTP' })
       variant="subtle"
       icon="i-lucide-construction"
       title="Not wired up yet"
-      description="This screen is a placeholder. Saving is disabled until the API stores SMTP settings."
+      description="This screen is a placeholder. Saving is disabled until the API stores SMTP settings. Until then, password reset links are written to the API server log instead of being emailed."
     />
 
     <UCard class="mt-6">

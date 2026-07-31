@@ -69,7 +69,7 @@ func (s *Store) Close() error {
 
 func (s *Store) AutoMigrate(ctx context.Context) error {
 	err := s.db.WithContext(ctx).AutoMigrate(
-		&userRecord{}, &sessionRecord{}, &schoolRecord{}, &schoolClassroomRecord{},
+		&userRecord{}, &sessionRecord{}, &passwordResetRecord{}, &schoolRecord{}, &schoolClassroomRecord{},
 		&academicYearRecord{}, &academicSegmentRecord{}, &studentRecord{},
 		&studentClassroomRecord{}, &classRecord{}, &classClassroomRecord{}, &classStudentRecord{}, &studentLogRecord{},
 		&assignmentRecord{}, &assignmentStudentRecord{},
@@ -213,6 +213,9 @@ func (s *Store) DeleteUser(ctx context.Context, id string) error {
 			return err
 		}
 		if err := tx.Exec("DELETE FROM sessions WHERE user_id = ?", id).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("DELETE FROM password_reset_tokens WHERE user_id = ?", id).Error; err != nil {
 			return err
 		}
 		result := tx.Exec("DELETE FROM users WHERE id = ?", id)

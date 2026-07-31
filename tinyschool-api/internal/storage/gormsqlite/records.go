@@ -4,6 +4,7 @@ import "time"
 
 func (userRecord) TableName() string                 { return "users" }
 func (sessionRecord) TableName() string              { return "sessions" }
+func (passwordResetRecord) TableName() string        { return "password_reset_tokens" }
 func (schoolRecord) TableName() string               { return "schools" }
 func (schoolClassroomRecord) TableName() string      { return "school_classrooms" }
 func (academicYearRecord) TableName() string         { return "academic_years" }
@@ -35,6 +36,16 @@ type sessionRecord struct {
 	User      userRecord `gorm:"foreignKey:UserID;references:ID"`
 	ExpiresAt time.Time  `gorm:"not null;index"`
 	RevokedAt *time.Time
+	CreatedAt time.Time `gorm:"not null"`
+}
+
+type passwordResetRecord struct {
+	ID        string     `gorm:"primaryKey"`
+	UserID    string     `gorm:"not null;index"`
+	User      userRecord `gorm:"foreignKey:UserID;references:ID"`
+	TokenHash string     `gorm:"not null;uniqueIndex"`
+	ExpiresAt time.Time  `gorm:"not null;index"`
+	UsedAt    *time.Time
 	CreatedAt time.Time `gorm:"not null"`
 }
 

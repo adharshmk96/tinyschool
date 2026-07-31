@@ -9,6 +9,8 @@ services:
     environment:
       TINYSCHOOL_API_ADDRESS: ":8080"
       TINYSCHOOL_DB_PATH: /data/tinyschool.db
+      # Origin used to build password reset links written to the API log.
+      TINYSCHOOL_APP_BASE_URL: ${TINYSCHOOL_APP_BASE_URL:-http://localhost}
     restart: unless-stopped
     volumes:
       - data:/data

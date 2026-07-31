@@ -27,6 +27,8 @@ func NewHandler(app *service.App, logger *slog.Logger) http.Handler {
 	mux.HandleFunc("POST /api/v1/auth/login", handler.login)
 	mux.HandleFunc("POST /api/v1/auth/refresh", handler.refresh)
 	mux.HandleFunc("POST /api/v1/auth/logout", handler.logout)
+	mux.HandleFunc("POST /api/v1/auth/forgot-password", handler.forgotPassword)
+	mux.HandleFunc("POST /api/v1/auth/reset-password", handler.resetPassword)
 	handler.registerAdminRoutes(mux)
 
 	protected := http.NewServeMux()

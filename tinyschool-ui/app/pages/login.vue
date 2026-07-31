@@ -70,6 +70,12 @@ useSeoMeta({ title: 'Log in' })
             label="Password"
             required
           >
+            <template #hint>
+              <NuxtLink
+                to="/forgot-password"
+                class="text-sm font-medium text-primary hover:underline"
+              >Forgot password?</NuxtLink>
+            </template>
             <UInput
               v-model="form.password"
               type="password"

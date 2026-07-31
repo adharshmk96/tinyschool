@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -38,12 +39,15 @@ func (e *Error) Unwrap() error {
 }
 
 type App struct {
-	storage         storage.Storage
-	now             func() time.Time
-	id              func(string) (string, error)
-	sessionDuration time.Duration
-	tokenDuration   time.Duration
-	jwtSecret       []byte
+	storage            storage.Storage
+	now                func() time.Time
+	id                 func(string) (string, error)
+	sessionDuration    time.Duration
+	tokenDuration      time.Duration
+	resetTokenDuration time.Duration
+	appBaseURL         string
+	jwtSecret          []byte
+	logger             *slog.Logger
 }
 
 type Option func(*App)
@@ -80,16 +84,45 @@ func WithJWTSecret(secret []byte) Option {
 	}
 }
 
+// WithAppBaseURL sets the origin used to build links sent to users, such as
+// password reset links.
+func WithAppBaseURL(baseURL string) Option {
+	return func(app *App) {
+		if trimmed := strings.TrimRight(strings.TrimSpace(baseURL), "/"); trimmed != "" {
+			app.appBaseURL = trimmed
+		}
+	}
+}
+
+func WithResetTokenDuration(duration time.Duration) Option {
+	return func(app *App) {
+		if duration > 0 {
+			app.resetTokenDuration = duration
+		}
+	}
+}
+
+func WithLogger(logger *slog.Logger) Option {
+	return func(app *App) {
+		if logger != nil {
+			app.logger = logger
+		}
+	}
+}
+
 func New(store storage.Storage, options ...Option) *App {
 	secret := make([]byte, 32)
 	_, _ = rand.Read(secret)
 	app := &App{
-		storage:         store,
-		now:             time.Now,
-		id:              randomID,
-		sessionDuration: 24 * time.Hour,
-		tokenDuration:   15 * time.Minute,
-		jwtSecret:       secret,
+		storage:            store,
+		now:                time.Now,
+		id:                 randomID,
+		sessionDuration:    24 * time.Hour,
+		tokenDuration:      15 * time.Minute,
+		resetTokenDuration: time.Hour,
+		appBaseURL:         "http://localhost:3000",
+		jwtSecret:          secret,
+		logger:             slog.Default(),
 	}
 	for _, option := range options {
 		option(app)
