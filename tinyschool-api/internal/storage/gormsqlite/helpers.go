@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -44,6 +45,24 @@ func order(db *gorm.DB, options storage.ListOptions, allowed map[string]string, 
 		direction = "DESC"
 	}
 	return db.Order(column + " " + direction)
+}
+
+// inclusiveDays rebuilds the derived duration of a date range that is stored
+// alongside its start and end dates. Imported files only carry the dates.
+func inclusiveDays(startDate, endDate string) int {
+	start, err := time.Parse(time.DateOnly, startDate)
+	if err != nil {
+		return 0
+	}
+	end, err := time.Parse(time.DateOnly, endDate)
+	if err != nil {
+		return 0
+	}
+	days := int(end.Sub(start).Hours()/24) + 1
+	if days < 0 {
+		return 0
+	}
+	return days
 }
 
 func contains(search string) string {

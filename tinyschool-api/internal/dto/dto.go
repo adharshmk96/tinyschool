@@ -245,27 +245,27 @@ type StudentClassroom struct {
 }
 
 type StudentRequest struct {
-	SchoolID         string                   `json:"schoolId"`
-	FirstName        string                   `json:"firstName"`
-	LastName         string                   `json:"lastName"`
-	Email            string                   `json:"email"`
-	Phone            string                   `json:"phone"`
-	Classrooms       []StudentClassroomInput  `json:"classrooms"`
-	Guardian         Guardian                 `json:"guardian"`
-	ResidentAddress  string                   `json:"residentAddress"`
-	PermanentAddress string                   `json:"permanentAddress"`
+	SchoolID         string                  `json:"schoolId"`
+	FirstName        string                  `json:"firstName"`
+	LastName         string                  `json:"lastName"`
+	Email            string                  `json:"email"`
+	Phone            string                  `json:"phone"`
+	Classrooms       []StudentClassroomInput `json:"classrooms"`
+	Guardian         Guardian                `json:"guardian"`
+	ResidentAddress  string                  `json:"residentAddress"`
+	PermanentAddress string                  `json:"permanentAddress"`
 }
 
 type UpdateStudentRequest struct {
-	SchoolID         *string                   `json:"schoolId"`
-	FirstName        *string                   `json:"firstName"`
-	LastName         *string                   `json:"lastName"`
-	Email            *string                   `json:"email"`
-	Phone            *string                   `json:"phone"`
-	Classrooms       *[]StudentClassroomInput  `json:"classrooms"`
-	Guardian         *Guardian                 `json:"guardian"`
-	ResidentAddress  *string                   `json:"residentAddress"`
-	PermanentAddress *string                   `json:"permanentAddress"`
+	SchoolID         *string                  `json:"schoolId"`
+	FirstName        *string                  `json:"firstName"`
+	LastName         *string                  `json:"lastName"`
+	Email            *string                  `json:"email"`
+	Phone            *string                  `json:"phone"`
+	Classrooms       *[]StudentClassroomInput `json:"classrooms"`
+	Guardian         *Guardian                `json:"guardian"`
+	ResidentAddress  *string                  `json:"residentAddress"`
+	PermanentAddress *string                  `json:"permanentAddress"`
 }
 
 type StudentLog struct {
@@ -286,25 +286,25 @@ type StudentResult struct {
 }
 
 type Student struct {
-	ID               string              `json:"id"`
-	SchoolID         string              `json:"schoolId"`
-	FirstName        string              `json:"firstName"`
-	LastName         string              `json:"lastName"`
-	FullName         string              `json:"fullName"`
-	Email            string              `json:"email"`
-	Phone            string              `json:"phone"`
-	Classroom        string              `json:"classroom"`
-	Classrooms       []StudentClassroom  `json:"classrooms"`
-	Guardian         Guardian            `json:"guardian"`
-	ResidentAddress  string              `json:"residentAddress"`
-	PermanentAddress string              `json:"permanentAddress"`
-	AverageScore     float64             `json:"averageScore"`
-	ClassAverage     float64             `json:"classAverage"`
-	Performance      *Performance        `json:"performance,omitempty"`
-	Behaviour        []StudentLog        `json:"behaviour,omitempty"`
-	Notes            []StudentLog        `json:"notes,omitempty"`
-	Assignments      []StudentResult     `json:"assignments,omitempty"`
-	Exams            []StudentResult     `json:"exams,omitempty"`
+	ID               string             `json:"id"`
+	SchoolID         string             `json:"schoolId"`
+	FirstName        string             `json:"firstName"`
+	LastName         string             `json:"lastName"`
+	FullName         string             `json:"fullName"`
+	Email            string             `json:"email"`
+	Phone            string             `json:"phone"`
+	Classroom        string             `json:"classroom"`
+	Classrooms       []StudentClassroom `json:"classrooms"`
+	Guardian         Guardian           `json:"guardian"`
+	ResidentAddress  string             `json:"residentAddress"`
+	PermanentAddress string             `json:"permanentAddress"`
+	AverageScore     float64            `json:"averageScore"`
+	ClassAverage     float64            `json:"classAverage"`
+	Performance      *Performance       `json:"performance,omitempty"`
+	Behaviour        []StudentLog       `json:"behaviour,omitempty"`
+	Notes            []StudentLog       `json:"notes,omitempty"`
+	Assignments      []StudentResult    `json:"assignments,omitempty"`
+	Exams            []StudentResult    `json:"exams,omitempty"`
 }
 
 type BehaviourRequest struct {
@@ -408,4 +408,16 @@ type Exam struct {
 	AverageScore   float64       `json:"averageScore"`
 	Performance    *Performance  `json:"performance,omitempty"`
 	Students       []ExamStudent `json:"students,omitempty"`
+}
+
+// ImportSummary reports what a data import wrote, counted per sheet.
+type ImportSummary struct {
+	Schools       int `json:"schools"`
+	AcademicYears int `json:"academicYears"`
+	Students      int `json:"students"`
+	StudentLogs   int `json:"studentLogs"`
+	Classes       int `json:"classes"`
+	Assignments   int `json:"assignments"`
+	Exams         int `json:"exams"`
+	Scores        int `json:"scores"`
 }

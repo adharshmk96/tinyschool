@@ -74,3 +74,14 @@ export interface AcademicYear {
   isCurrent?: boolean
   segments: AcademicSegment[]
 }
+
+export interface ImportSummary {
+  schools: number
+  academicYears: number
+  students: number
+  studentLogs: number
+  classes: number
+  assignments: number
+  exams: number
+  scores: number
+}

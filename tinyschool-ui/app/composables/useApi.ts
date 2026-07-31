@@ -2,7 +2,9 @@ import type { ApiCollection, ApiItem } from '~/types/api'
 
 interface ApiRequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
-  body?: Record<string, unknown>
+  // FormData is used for file uploads, where $fetch sets the multipart headers.
+  body?: Record<string, unknown> | FormData
+  responseType?: 'blob'
 }
 
 export function useApi() {
@@ -58,7 +60,15 @@ export function useApi() {
     await request<unknown>(path, { method: 'POST' })
   }
 
-  return { baseURL, request, getItem, getCollection, postItem, patchItem, put, post }
+  async function download(path: string) {
+    return await request<Blob>(path, { responseType: 'blob' })
+  }
+
+  async function upload<T>(path: string, body: FormData) {
+    return await request<ApiItem<T>>(path, { method: 'POST', body })
+  }
+
+  return { baseURL, request, getItem, getCollection, postItem, patchItem, put, post, download, upload }
 }
 
 export function apiErrorMessage(error: unknown, fallback: string) {

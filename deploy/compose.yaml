@@ -3,6 +3,9 @@ name: tinyschool
 services:
   api:
     image: ${IMAGE_API}
+    build:
+      context: ..
+      dockerfile: deploy/api.Dockerfile
     environment:
       TINYSCHOOL_API_ADDRESS: ":8080"
       TINYSCHOOL_DB_PATH: /data/tinyschool.db
@@ -12,6 +15,11 @@ services:
 
   ui:
     image: ${IMAGE_UI}
+    build:
+      context: ..
+      dockerfile: deploy/ui.Dockerfile
+      args:
+        APP_VERSION: ${APP_VERSION:-dev}
     environment:
       NUXT_PUBLIC_API_BASE: https://${DOMAIN}/api/v1
     restart: unless-stopped

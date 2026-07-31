@@ -41,6 +41,10 @@ type Storage interface {
 	RevokeSession(context.Context, string, time.Time) error
 	RevokeOtherSessions(ctx context.Context, userID, exceptSessionID string, revokedAt time.Time) error
 	ClearUserData(context.Context) error
+	ExportUserData(context.Context) (model.Dataset, error)
+	// ReplaceUserData clears everything the caller owns and writes the dataset
+	// in its place, as one transaction.
+	ReplaceUserData(context.Context, model.Dataset) error
 	Overview(context.Context) (model.Overview, error)
 	Upcoming(context.Context, string, string, int) ([]model.UpcomingItem, error)
 

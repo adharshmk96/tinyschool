@@ -16,6 +16,8 @@ IMAGE_API="${IMAGE_API:-}"
 REMOTE="${DEPLOY_USER}@${DEPLOY_HOST}"
 RELEASE_ID="${GITHUB_SHA:-$(date -u +%Y%m%d%H%M%S)}"
 RELEASE_ID="${RELEASE_ID:0:16}"
+APP_VERSION="${TINYSCHOOL_APP_VERSION:-$(git -C "${ROOT_DIR}" describe --tags --always 2>/dev/null || echo dev)}"
+DEPLOY_MODE="pull"
 
 log() {
   printf '\033[1;34m==>\033[0m %s\n' "$*"
@@ -34,10 +36,16 @@ command -v curl >/dev/null || fail "curl is required"
 [[ "${DEPLOY_USER}" =~ ^[a-zA-Z0-9._-]+$ ]] || fail "DEPLOY_USER contains unsupported characters"
 [[ "${DEPLOY_DOMAIN}" =~ ^[a-zA-Z0-9.-]+$ ]] || fail "DEPLOY_DOMAIN contains unsupported characters"
 [[ "${RELEASE_ID}" =~ ^[a-zA-Z0-9._-]+$ ]] || fail "release ID contains unsupported characters"
-[[ -n "${IMAGE_UI}" ]] || fail "IMAGE_UI must be set to the image built by CI"
-[[ -n "${IMAGE_API}" ]] || fail "IMAGE_API must be set to the image built by CI"
+if [[ -z "${IMAGE_UI}" && -z "${IMAGE_API}" ]]; then
+  DEPLOY_MODE="build"
+  IMAGE_UI="tinyschool-ui:${RELEASE_ID}"
+  IMAGE_API="tinyschool-api:${RELEASE_ID}"
+elif [[ -z "${IMAGE_UI}" || -z "${IMAGE_API}" ]]; then
+  fail "IMAGE_UI and IMAGE_API must either both be set or both be omitted"
+fi
 [[ "${IMAGE_UI}" =~ ^[a-zA-Z0-9./:_-]+$ ]] || fail "IMAGE_UI contains unsupported characters"
 [[ "${IMAGE_API}" =~ ^[a-zA-Z0-9./:_-]+$ ]] || fail "IMAGE_API contains unsupported characters"
+[[ "${APP_VERSION}" =~ ^[a-zA-Z0-9._+-]+$ ]] || fail "app version contains unsupported characters"
 
 # ServerAliveInterval keeps the TCP session alive through intermediate NAT while
 # a long, silent remote build runs; without it the connection is dropped and ssh
@@ -85,19 +93,30 @@ if [[ -n "${REGISTRY_TOKEN}" ]]; then
     || fail "docker login to ${REGISTRY} failed"
 fi
 
-log "Pulling ${IMAGE_UI} and ${IMAGE_API}"
+if [[ "${DEPLOY_MODE}" == "build" ]]; then
+  log "Building ${IMAGE_UI} and ${IMAGE_API} on ${REMOTE}"
+else
+  log "Pulling ${IMAGE_UI} and ${IMAGE_API}"
+fi
 "${SSH[@]}" bash -s -- \
-  "${REMOTE_RELEASE}" "${DEPLOY_PATH}" "${DEPLOY_DOMAIN}" "${IMAGE_UI}" "${IMAGE_API}" <<'REMOTE'
+  "${REMOTE_RELEASE}" "${DEPLOY_PATH}" "${DEPLOY_DOMAIN}" "${IMAGE_UI}" "${IMAGE_API}" \
+  "${DEPLOY_MODE}" "${APP_VERSION}" <<'REMOTE'
 set -Eeuo pipefail
 release_path="$1"
 deploy_path="$2"
 domain="$3"
 image_ui="$4"
 image_api="$5"
+deploy_mode="$6"
+app_version="$7"
 
 cd "${release_path}/deploy"
-export DOMAIN="${domain}" IMAGE_UI="${image_ui}" IMAGE_API="${image_api}"
-docker compose pull --quiet api ui
+export DOMAIN="${domain}" IMAGE_UI="${image_ui}" IMAGE_API="${image_api}" APP_VERSION="${app_version}"
+if [[ "${deploy_mode}" == "build" ]]; then
+  docker compose build api ui
+else
+  docker compose pull --quiet api ui
+fi
 docker compose up -d --remove-orphans
 ln -sfn "${release_path}" "${deploy_path}/current"
 # Per-commit tags accumulate; drop unused images older than a week so the

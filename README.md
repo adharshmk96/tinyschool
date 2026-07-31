@@ -54,12 +54,37 @@ cd tinyschool-api
 go run . --database ./tinyschool.db --address :8080
 ```
 
+## Data export and import
+
+`Settings → Data` downloads and restores the whole workspace of the signed-in
+account.
+
+- `GET /api/v1/me/data/export` returns an `.xlsx` workbook with one sheet per
+  record type. `?format=csv` returns the same sheets as a `.zip` of CSV files.
+- `POST /api/v1/me/data/import` takes the file back as multipart field `file`
+  (`.xlsx`, `.zip`, or a single sheet as `.csv`) and **replaces** everything the
+  account owns, in one transaction. Nothing is written unless the whole file
+  validates.
+
+The sheets are `schools`, `academic_years`, `academic_segments`, `students`,
+`student_classrooms`, `student_logs`, `classes`, `class_students`,
+`assignments`, `assignment_scores`, `exams` and `exam_scores`. Rows point at
+each other with the ids in the file; those ids are local to the file, and the
+importer stores every record under a freshly generated id, so a file exported
+from one account can be imported into another. Multi-valued cells (a school's
+classrooms) are separated with `|`, and columns are matched by header name, so
+a hand-edited sheet may reorder or drop columns.
+
+An export of an empty account is a usable import template: every sheet is
+present with its header row.
+
 ## Deploy (SSH)
 
 The same script deploys from a laptop or GitHub Actions:
 
 ```text
-upload source → Docker Compose builds → Caddy serves HTTPS → readiness check
+laptop: upload source → build on server → Caddy serves HTTPS → readiness check
+CI:     upload source → pull CI images → Caddy serves HTTPS → readiness check
 ```
 
 The server needs Docker with the Compose plugin and SSH key access. Caddy was
@@ -72,6 +97,9 @@ ssh-copy-id root@147.93.97.228
 ```
 
 Default URL: `https://tinyschool.147.93.97.228.nip.io`
+
+No image variables are needed when running locally. `IMAGE_UI` and `IMAGE_API`
+remain optional CI overrides and must be provided together.
 
 Override configuration with `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_PATH`, or
 `DEPLOY_DOMAIN`. SQLite and Caddy certificates remain in named Docker volumes

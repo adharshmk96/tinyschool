@@ -12,6 +12,8 @@ func (h *Handler) registerProtectedRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("PATCH /api/v1/me", h.updateMe)
 	mux.HandleFunc("PUT /api/v1/me/password", h.updatePassword)
 	mux.HandleFunc("DELETE /api/v1/me/data", h.clearData)
+	mux.HandleFunc("GET /api/v1/me/data/export", h.exportData)
+	mux.HandleFunc("POST /api/v1/me/data/import", h.importData)
 	mux.HandleFunc("GET /api/v1/overview", h.overview)
 	mux.HandleFunc("GET /api/v1/schools", h.listSchools)
 	mux.HandleFunc("POST /api/v1/schools", h.createSchool)
