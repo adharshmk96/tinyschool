@@ -16,6 +16,9 @@ func (a *App) ListAssignments(ctx context.Context, input dto.ListOptions) (dto.P
 	if err != nil {
 		return dto.Page[dto.Assignment]{}, err
 	}
+	if err := a.applyAcademicYearDates(ctx, &options); err != nil {
+		return dto.Page[dto.Assignment]{}, err
+	}
 	items, total, err := a.storage.ListAssignments(ctx, options)
 	if err != nil {
 		return dto.Page[dto.Assignment]{}, err
@@ -147,8 +150,6 @@ func (a *App) assignmentFromInput(ctx context.Context, id string, input dto.Assi
 	switch {
 	case input.SchoolID == "":
 		return model.Assignment{}, nil, validation("schoolId is required")
-	case input.AcademicYearID == "":
-		return model.Assignment{}, nil, validation("academicYearId is required")
 	case input.Name == "":
 		return model.Assignment{}, nil, validation("name is required")
 	case input.Type != "class" && input.Type != "individual":
@@ -160,13 +161,11 @@ func (a *App) assignmentFromInput(ctx context.Context, id string, input dto.Assi
 	if err != nil {
 		return model.Assignment{}, nil, err
 	}
-	year, err := a.storage.AcademicYear(ctx, input.AcademicYearID)
+	year, err := a.academicYearForDate(ctx, input.SchoolID, dueDate)
 	if err != nil {
-		return model.Assignment{}, nil, translate(err, "academic year")
+		return model.Assignment{}, nil, err
 	}
-	if year.SchoolID != input.SchoolID {
-		return model.Assignment{}, nil, &Error{Kind: ErrConflict, Message: "school and academic year do not match"}
-	}
+	input.AcademicYearID = year.ID
 	studentIDs, err := uniqueTrimmed(input.StudentIDs, "studentIds")
 	if err != nil {
 		return model.Assignment{}, nil, err
@@ -183,8 +182,8 @@ func (a *App) assignmentFromInput(ctx context.Context, id string, input dto.Assi
 		if findErr != nil {
 			return model.Assignment{}, nil, translate(findErr, "class")
 		}
-		if classItem.SchoolID != input.SchoolID || classItem.AcademicYearID != input.AcademicYearID {
-			return model.Assignment{}, nil, &Error{Kind: ErrConflict, Message: "class does not belong to the school and academic year"}
+		if classItem.SchoolID != input.SchoolID {
+			return model.Assignment{}, nil, &Error{Kind: ErrConflict, Message: "class belongs to a different school"}
 		}
 		classID = &input.ClassID
 	} else {
@@ -234,6 +233,9 @@ func (a *App) ListExams(ctx context.Context, input dto.ListOptions) (dto.Page[dt
 		"name": true, "type": true, "examDate": true, "markedCount": true, "averageScore": true,
 	}, "examDate")
 	if err != nil {
+		return dto.Page[dto.Exam]{}, err
+	}
+	if err := a.applyAcademicYearDates(ctx, &options); err != nil {
 		return dto.Page[dto.Exam]{}, err
 	}
 	items, total, err := a.storage.ListExams(ctx, options)
@@ -359,8 +361,6 @@ func (a *App) examFromInput(ctx context.Context, id string, input dto.ExamReques
 	switch {
 	case input.SchoolID == "":
 		return model.Exam{}, validation("schoolId is required")
-	case input.AcademicYearID == "":
-		return model.Exam{}, validation("academicYearId is required")
 	case input.ClassID == "":
 		return model.Exam{}, validation("classId is required")
 	case input.Name == "":
@@ -374,17 +374,17 @@ func (a *App) examFromInput(ctx context.Context, id string, input dto.ExamReques
 	if err != nil {
 		return model.Exam{}, err
 	}
-	year, err := a.storage.AcademicYear(ctx, input.AcademicYearID)
+	year, err := a.academicYearForDate(ctx, input.SchoolID, examDate)
 	if err != nil {
-		return model.Exam{}, translate(err, "academic year")
+		return model.Exam{}, err
 	}
+	input.AcademicYearID = year.ID
 	classItem, err := a.storage.Class(ctx, input.ClassID)
 	if err != nil {
 		return model.Exam{}, translate(err, "class")
 	}
-	if year.SchoolID != input.SchoolID || classItem.SchoolID != input.SchoolID ||
-		classItem.AcademicYearID != input.AcademicYearID {
-		return model.Exam{}, &Error{Kind: ErrConflict, Message: "school, academic year, and class do not match"}
+	if classItem.SchoolID != input.SchoolID {
+		return model.Exam{}, &Error{Kind: ErrConflict, Message: "class belongs to a different school"}
 	}
 	return model.Exam{
 		ID: id, SchoolID: input.SchoolID, AcademicYearID: input.AcademicYearID, ClassID: input.ClassID,

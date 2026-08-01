@@ -165,13 +165,13 @@ func TestStudentClassroomsFollowAcademicYear(t *testing.T) {
 		t.Fatalf("student total = %d, want 8", total)
 	}
 
-	// Classes, however, belong to one year.
+	// Classes are reusable and remain visible regardless of the selected year.
 	classes, classTotal, err := store.ListClasses(ctx, storage.ListOptions{Page: 1, PageSize: 10, AcademicYearID: "ay_2025"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if classTotal != 0 || len(classes) != 0 {
-		t.Fatalf("expected no classes in the previous year, got %d", classTotal)
+	if classTotal != 4 || len(classes) != 4 {
+		t.Fatalf("expected all classes in the previous year, got %d", classTotal)
 	}
 
 	student.Classrooms = []model.StudentClassroom{{AcademicYearID: "ay_2026", Classroom: "9A"}}
@@ -220,6 +220,62 @@ func TestClearUserDataDoesNotDeleteAnotherUsersData(t *testing.T) {
 	if total != 1 || len(schools) != 1 || schools[0].ID != "sch_two" {
 		t.Fatalf("other user's data changed: total=%d schools=%+v", total, schools)
 	}
+}
+
+func TestAssignmentsAndExamsUseDateRangeInsteadOfStoredYear(t *testing.T) {
+	ctx := tenancy.WithUserID(context.Background(), "usr_001")
+	store, err := Open(filepath.Join(t.TempDir(), "school.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.AutoMigrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Seed(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	// Deliberately make the legacy stored year disagree with the item dates.
+	if err := store.db.Model(&assignmentRecord{}).Where("id = ?", "asg_001").Update("academic_year_id", "ay_2025").Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := store.db.Model(&examRecord{}).Where("id = ?", "exam_001").Update("academic_year_id", "ay_2025").Error; err != nil {
+		t.Fatal(err)
+	}
+
+	options := storage.ListOptions{Page: 1, PageSize: 100, DateFrom: "2026-06-01", DateTo: "2027-03-31"}
+	assignments, _, err := store.ListAssignments(ctx, options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exams, _, err := store.ListExams(ctx, options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !containsAssignment(assignments, "asg_001") {
+		t.Fatal("assignment with an in-range due date was excluded by its legacy year")
+	}
+	if !containsExam(exams, "exam_001") {
+		t.Fatal("exam with an in-range exam date was excluded by its legacy year")
+	}
+}
+
+func containsAssignment(items []model.Assignment, id string) bool {
+	for _, item := range items {
+		if item.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+func containsExam(items []model.Exam, id string) bool {
+	for _, item := range items {
+		if item.ID == id {
+			return true
+		}
+	}
+	return false
 }
 
 func TestSchoolClassroomsInUseAndListClassroomFilter(t *testing.T) {

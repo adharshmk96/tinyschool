@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"tinyschool-api/internal/dto"
+	"tinyschool-api/internal/model"
 	"tinyschool-api/internal/storage"
 )
 
@@ -235,6 +236,33 @@ func date(value, field string) (time.Time, error) {
 		return time.Time{}, validation(field + " must use YYYY-MM-DD")
 	}
 	return parsed, nil
+}
+
+func (a *App) academicYearForDate(ctx context.Context, schoolID string, value time.Time) (model.AcademicYear, error) {
+	years, _, err := a.storage.ListAcademicYears(ctx, storage.ListOptions{Sort: "startDate", Order: "asc", Page: 1, PageSize: 100})
+	if err != nil {
+		return model.AcademicYear{}, err
+	}
+	day := value.Format(time.DateOnly)
+	for _, year := range years {
+		if year.SchoolID == schoolID && year.StartDate <= day && day <= year.EndDate {
+			return year, nil
+		}
+	}
+	return model.AcademicYear{}, validation("date must fall within an academic year for the selected school")
+}
+
+func (a *App) applyAcademicYearDates(ctx context.Context, options *storage.ListOptions) error {
+	if options.AcademicYearID == "" {
+		return nil
+	}
+	year, err := a.storage.AcademicYear(ctx, options.AcademicYearID)
+	if err != nil {
+		return translate(err, "academic year")
+	}
+	options.DateFrom = year.StartDate
+	options.DateTo = year.EndDate
+	return nil
 }
 
 func percent(part, total int) int {

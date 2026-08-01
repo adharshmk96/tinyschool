@@ -16,6 +16,8 @@ func (a *App) ListClasses(ctx context.Context, input dto.ListOptions) (dto.Page[
 	if err != nil {
 		return dto.Page[dto.Class]{}, err
 	}
+	// Classes belong to a school and can be reused in every academic year.
+	options.AcademicYearID = ""
 	items, total, err := a.storage.ListClasses(ctx, options)
 	if err != nil {
 		return dto.Page[dto.Class]{}, err
@@ -109,8 +111,6 @@ func (a *App) classFromInput(ctx context.Context, id string, input dto.ClassRequ
 	switch {
 	case input.SchoolID == "":
 		return model.Class{}, nil, validation("schoolId is required")
-	case input.AcademicYearID == "":
-		return model.Class{}, nil, validation("academicYearId is required")
 	case input.Name == "":
 		return model.Class{}, nil, validation("name is required")
 	case input.Subject == "":
@@ -132,12 +132,13 @@ func (a *App) classFromInput(ctx context.Context, id string, input dto.ClassRequ
 			return model.Class{}, nil, validation("classroom must belong to the selected school")
 		}
 	}
-	year, err := a.storage.AcademicYear(ctx, input.AcademicYearID)
-	if err != nil {
-		return model.Class{}, nil, translate(err, "academic year")
-	}
-	if year.SchoolID != input.SchoolID {
-		return model.Class{}, nil, &Error{Kind: ErrConflict, Message: "school and academic year do not match"}
+	// Keep a legacy value for existing databases; it is not part of class behavior.
+	if input.AcademicYearID == "" {
+		year, findErr := a.academicYearForDate(ctx, input.SchoolID, a.now())
+		if findErr != nil {
+			return model.Class{}, nil, findErr
+		}
+		input.AcademicYearID = year.ID
 	}
 	studentIDs, err := uniqueTrimmed(input.StudentIDs, "studentIds")
 	if err != nil {

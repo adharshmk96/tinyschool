@@ -12,9 +12,6 @@ import (
 
 func (s *Store) ListClasses(ctx context.Context, options storage.ListOptions) ([]model.Class, int64, error) {
 	query := s.db.WithContext(ctx).Model(&classRecord{}).Where("classes.user_id = ?", userID(ctx))
-	if options.AcademicYearID != "" {
-		query = query.Where("classes.academic_year_id = ?", options.AcademicYearID)
-	}
 	if options.Classroom != "" {
 		query = query.Where(`EXISTS (
 			SELECT 1 FROM class_classrooms cc
@@ -32,7 +29,7 @@ func (s *Store) ListClasses(ctx context.Context, options storage.ListOptions) ([
 	}
 	allowed := map[string]string{
 		"name": "name", "subject": "subject",
-		"classroom": "(SELECT MIN(cc.classroom) FROM class_classrooms cc WHERE cc.class_id = classes.id)",
+		"classroom":    "(SELECT MIN(cc.classroom) FROM class_classrooms cc WHERE cc.class_id = classes.id)",
 		"studentCount": "(SELECT COUNT(*) FROM class_students cs WHERE cs.class_id = classes.id)",
 	}
 	var records []classRecord

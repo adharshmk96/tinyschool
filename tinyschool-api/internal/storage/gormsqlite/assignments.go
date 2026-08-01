@@ -17,8 +17,8 @@ func assignmentPreloads(db *gorm.DB) *gorm.DB {
 
 func (s *Store) ListAssignments(ctx context.Context, options storage.ListOptions) ([]model.Assignment, int64, error) {
 	query := s.db.WithContext(ctx).Model(&assignmentRecord{}).Where("assignments.user_id = ?", userID(ctx))
-	if options.AcademicYearID != "" {
-		query = query.Where("assignments.academic_year_id = ?", options.AcademicYearID)
+	if options.DateFrom != "" && options.DateTo != "" {
+		query = query.Where("assignments.due_date BETWEEN ? AND ?", options.DateFrom, options.DateTo)
 	}
 	if options.Classroom != "" {
 		classroom := options.Classroom

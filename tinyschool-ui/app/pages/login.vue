@@ -2,6 +2,7 @@
 const route = useRoute()
 const toast = useToast()
 const { postItem } = useApi()
+const { load: loadSchoolContext } = useSchoolContext()
 const pending = ref(false)
 const form = reactive({ email: '', password: '' })
 
@@ -20,6 +21,7 @@ async function submit() {
       sameSite: 'lax',
       maxAge: 60 * 60 * 24
     }).value = 'true'
+    await loadSchoolContext(true)
     toast.add({ title: 'Welcome back', description: 'You are signed in.', color: 'success' })
     await navigateTo(typeof route.query.redirect === 'string' ? route.query.redirect : '/dashboard')
   } catch (error) {

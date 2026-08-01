@@ -21,7 +21,7 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 const { getCollection, request } = useApi()
-const { selectedSchoolId, selectedYearId, availableAcademicYears } = useSchoolContext()
+const { selectedSchoolId, selectedYearId } = useSchoolContext()
 const modalOpen = ref(false)
 const editing = ref<Item | null>(null)
 const form = reactive<Record<string, string>>({})
@@ -35,14 +35,7 @@ const sort = ref(String(route.query.sort || props.sortOptions[0]?.value || 'name
 const order = ref(route.query.order === 'asc' ? 'asc' : 'desc')
 const page = ref(Math.max(1, Number(route.query.page) || 1))
 const classroom = ref(props.classroomFilter && route.query.classroom ? String(route.query.classroom) : undefined)
-const pageSize = 8
-// The sidebar selector is the only academic year switch in the app.
-const currentYearLabel = computed(() => {
-  const year = availableAcademicYears.value.find(item => item.id === selectedYearId.value)
-  if (!year) return 'No academic year'
-  return year.isCurrent ? `${year.name} (current)` : year.name
-})
-
+const pageSize = 20
 const query = computed(() => ({
   search: search.value || undefined,
   sort: sort.value,
@@ -180,7 +173,6 @@ function openEdit(item: Item) {
 // never sent again, so editing a record can never move it to another year.
 function mutationBody() {
   const body: Record<string, unknown> = {}
-  const creating = !editing.value
   for (const field of props.fields) {
     if (field.type === 'classrooms') {
       body[field.key] = classroomRows.value.filter(row => row.academicYearId && row.classroom)
@@ -206,13 +198,9 @@ function mutationBody() {
   }
   if (props.endpoint.endsWith('/classes')) {
     body.schoolId = selectedSchoolId.value
-    if (creating)
-      body.academicYearId = selectedYearId.value
   }
   if (props.endpoint.endsWith('/assignments')) {
     body.schoolId = selectedSchoolId.value
-    if (creating)
-      body.academicYearId = selectedYearId.value
     body.type = String(body.type).toLowerCase()
     const ids = String(body.assignees || '').split(',').map(value => value.trim()).filter(Boolean)
     if (body.type === 'class')
@@ -223,8 +211,6 @@ function mutationBody() {
   }
   if (props.endpoint.endsWith('/exams')) {
     body.schoolId = selectedSchoolId.value
-    if (creating)
-      body.academicYearId = selectedYearId.value
     body.classId = body.class
     body.type = 'exam'
     delete body.class
@@ -343,7 +329,7 @@ async function remove() {
 
     <div
       v-if="status === 'pending'"
-      class="mt-5 grid gap-5 lg:grid-cols-2"
+      class="mt-5 grid gap-5"
     >
       <USkeleton
         v-for="index in 4"
@@ -354,7 +340,7 @@ async function remove() {
 
     <div
       v-else-if="items.length"
-      class="mt-5 grid gap-5 lg:grid-cols-2"
+      class="mt-5 grid gap-5"
     >
       <UCard
         v-for="item in items"
@@ -447,19 +433,6 @@ async function remove() {
           class="space-y-4"
           @submit.prevent="save"
         >
-          <UFormField
-            v-if="academicYearFilter"
-            label="Academic year"
-          >
-            <UInput
-              :model-value="currentYearLabel"
-              disabled
-              class="w-full"
-            />
-            <template #help>
-              Set from the academic year in the sidebar and cannot be changed here.
-            </template>
-          </UFormField>
           <UFormField
             v-for="field in fields"
             :key="field.key"

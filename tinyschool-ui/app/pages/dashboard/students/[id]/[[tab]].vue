@@ -25,6 +25,7 @@ onMounted(() => {
       { key: 'phone', label: 'Phone' },
       { key: 'classroom', label: 'Classroom (current year)' },
       { key: 'guardian.name', label: 'Guardian' },
+      { key: 'guardian.email', label: 'Guardian email' },
       { key: 'guardian.phone', label: 'Guardian phone' },
       { key: 'residentAddress', label: 'Resident address' }
     ]"

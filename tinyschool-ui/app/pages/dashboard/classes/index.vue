@@ -16,8 +16,7 @@ const fields = computed(() => [
     endpoint="/api/v1/classes"
     icon="i-lucide-presentation"
     detail-base="/dashboard/classes"
-    description="Organize classes by subject and classroom for the active academic year."
-    academic-year-filter
+    description="Organize reusable classes by subject and classroom."
     classroom-filter
     :sort-options="[
       { label: 'Name', value: 'name' },

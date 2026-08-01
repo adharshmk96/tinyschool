@@ -17,8 +17,8 @@ func examPreloads(db *gorm.DB) *gorm.DB {
 
 func (s *Store) ListExams(ctx context.Context, options storage.ListOptions) ([]model.Exam, int64, error) {
 	query := s.db.WithContext(ctx).Model(&examRecord{}).Where("exams.user_id = ?", userID(ctx))
-	if options.AcademicYearID != "" {
-		query = query.Where("exams.academic_year_id = ?", options.AcademicYearID)
+	if options.DateFrom != "" && options.DateTo != "" {
+		query = query.Where("exams.exam_date BETWEEN ? AND ?", options.DateFrom, options.DateTo)
 	}
 	if options.Classroom != "" {
 		query = query.Where(`EXISTS (
