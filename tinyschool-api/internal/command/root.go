@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
+	"tinyschool-api/internal/backup"
 	"tinyschool-api/internal/config"
 	"tinyschool-api/internal/server"
 	"tinyschool-api/internal/service"
@@ -61,6 +62,11 @@ func NewRootCommand() *cobra.Command {
 			}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+			backupManager, err := backup.New(cfg.DatabasePath, logger)
+			if err != nil {
+				return err
+			}
+			backupManager.Start(command.Context())
 			app := service.New(
 				store,
 				service.WithJWTSecret([]byte(secret)),
@@ -68,6 +74,7 @@ func NewRootCommand() *cobra.Command {
 				service.WithAppBaseURL(cfg.AppBaseURL),
 				service.WithResetTokenDuration(cfg.ResetTokenDuration),
 				service.WithLogger(logger),
+				service.WithBackups(backupManager),
 			)
 			return server.New(cfg.Address, cfg.ShutdownTimeout, app, logger).Run(command.Context())
 		},

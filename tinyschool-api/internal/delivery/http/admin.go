@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"tinyschool-api/internal/backup"
 	"tinyschool-api/internal/dto"
 )
 
@@ -26,7 +27,73 @@ func (h *Handler) registerAdminRoutes(mux *http.ServeMux) {
 	protected.HandleFunc("DELETE /api/v1/admin/users/{id}", h.adminDeleteUser)
 	protected.HandleFunc("POST /api/v1/admin/users/{id}/block", h.adminBlockUser)
 	protected.HandleFunc("POST /api/v1/admin/users/{id}/unblock", h.adminUnblockUser)
+	protected.HandleFunc("GET /api/v1/admin/backups/settings", h.adminBackupSettings)
+	protected.HandleFunc("PUT /api/v1/admin/backups/settings", h.adminSaveBackupSettings)
+	protected.HandleFunc("GET /api/v1/admin/backups", h.adminListBackups)
+	protected.HandleFunc("POST /api/v1/admin/backups", h.adminCreateBackup)
+	protected.HandleFunc("GET /api/v1/admin/backups/{name}/download", h.adminDownloadBackup)
+	protected.HandleFunc("POST /api/v1/admin/backups/{name}/restore", h.adminRestoreBackup)
 	mux.Handle("/api/v1/admin/", h.authenticateAdmin(protected))
+}
+
+func (h *Handler) adminBackupSettings(w http.ResponseWriter, r *http.Request) {
+	value, err := h.app.BackupSettings(r.Context())
+	if err != nil {
+		writeServiceError(h.logger, w, r, err)
+		return
+	}
+	writeItem(w, http.StatusOK, value)
+}
+
+func (h *Handler) adminSaveBackupSettings(w http.ResponseWriter, r *http.Request) {
+	input, ok := decodeBody[backup.Settings](w, r)
+	if !ok {
+		return
+	}
+	value, err := h.app.SaveBackupSettings(r.Context(), input)
+	if err != nil {
+		writeServiceError(h.logger, w, r, err)
+		return
+	}
+	writeItem(w, http.StatusOK, value)
+}
+
+func (h *Handler) adminListBackups(w http.ResponseWriter, r *http.Request) {
+	items, err := h.app.ListBackups()
+	if err != nil {
+		writeServiceError(h.logger, w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"data": items})
+}
+
+func (h *Handler) adminCreateBackup(w http.ResponseWriter, r *http.Request) {
+	value, err := h.app.CreateBackup(r.Context())
+	if err != nil {
+		writeServiceError(h.logger, w, r, err)
+		return
+	}
+	writeItem(w, http.StatusCreated, value)
+}
+
+func (h *Handler) adminDownloadBackup(w http.ResponseWriter, r *http.Request) {
+	path, value, err := h.app.BackupDownload(r.PathValue("name"))
+	if err != nil {
+		writeServiceError(h.logger, w, r, err)
+		return
+	}
+	w.Header().Set("Content-Disposition", `attachment; filename="`+value.Name+`"`)
+	w.Header().Set("Content-Type", "application/vnd.sqlite3")
+	http.ServeFile(w, r, path)
+}
+
+func (h *Handler) adminRestoreBackup(w http.ResponseWriter, r *http.Request) {
+	value, err := h.app.RestoreBackup(r.Context(), r.PathValue("name"))
+	if err != nil {
+		writeServiceError(h.logger, w, r, err)
+		return
+	}
+	writeItem(w, http.StatusOK, value)
 }
 
 type adminContextKey struct{}

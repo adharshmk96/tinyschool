@@ -3,6 +3,7 @@ import type { AdminUser, ApiCollection, ApiItem, AdminStatus } from '~/types/api
 interface AdminRequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body?: Record<string, unknown>
+  responseType?: 'blob'
 }
 
 /**
@@ -50,7 +51,11 @@ export function useAdminApi() {
     return await request<ApiItem<T>>(path, { method: 'POST', body })
   }
 
-  return { baseURL, request, getItem, getCollection, postItem }
+  async function download(path: string) {
+    return await request<Blob>(path, { responseType: 'blob' })
+  }
+
+  return { baseURL, request, getItem, getCollection, postItem, download }
 }
 
 /** Reads whether the first administrator still has to be created. */

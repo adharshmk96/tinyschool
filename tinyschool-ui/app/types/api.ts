@@ -27,6 +27,20 @@ export interface AdminStatus {
   adminExists: boolean
 }
 
+export interface BackupSettings {
+  enabled: boolean
+  frequency: 'daily' | 'every_2_days' | 'weekly'
+  runAt: string
+  maxBackups: number
+  nextRunAt?: string
+}
+
+export interface DatabaseBackup {
+  name: string
+  size: number
+  createdAt: string
+}
+
 export interface Overview {
   students: number
   classes: number
@@ -70,6 +84,7 @@ export interface AcademicYear {
   schoolId?: string
   name: string
   startDate: string
+  endDate?: string
   durationDays: number
   isCurrent?: boolean
   segments: AcademicSegment[]

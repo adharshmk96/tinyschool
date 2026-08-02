@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"tinyschool-api/internal/backup"
 	"tinyschool-api/internal/dto"
 	"tinyschool-api/internal/model"
 	"tinyschool-api/internal/storage"
@@ -49,6 +50,7 @@ type App struct {
 	appBaseURL         string
 	jwtSecret          []byte
 	logger             *slog.Logger
+	backups            *backup.Manager
 }
 
 type Option func(*App)
@@ -109,6 +111,10 @@ func WithLogger(logger *slog.Logger) Option {
 			app.logger = logger
 		}
 	}
+}
+
+func WithBackups(manager *backup.Manager) Option {
+	return func(app *App) { app.backups = manager }
 }
 
 func New(store storage.Storage, options ...Option) *App {

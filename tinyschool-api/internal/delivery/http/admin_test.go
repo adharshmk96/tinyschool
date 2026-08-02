@@ -10,13 +10,15 @@ import (
 	"strings"
 	"testing"
 
+	"tinyschool-api/internal/backup"
 	"tinyschool-api/internal/service"
 	"tinyschool-api/internal/storage/gormsqlite"
 )
 
 func adminTestHandler(t *testing.T) http.Handler {
 	t.Helper()
-	store, err := gormsqlite.Open(filepath.Join(t.TempDir(), "tinyschool.db"))
+	databasePath := filepath.Join(t.TempDir(), "tinyschool.db")
+	store, err := gormsqlite.Open(databasePath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,7 +30,14 @@ func adminTestHandler(t *testing.T) http.Handler {
 		t.Fatal(err)
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	return NewHandler(service.New(store, service.WithJWTSecret([]byte(strings.Repeat("s", 32)))), logger)
+	backupManager, err := backup.New(databasePath, logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return NewHandler(service.New(store,
+		service.WithJWTSecret([]byte(strings.Repeat("s", 32))),
+		service.WithBackups(backupManager),
+	), logger)
 }
 
 func do(t *testing.T, handler http.Handler, method, path, body string, cookie *http.Cookie) *httptest.ResponseRecorder {
@@ -44,6 +53,45 @@ func do(t *testing.T, handler http.Handler, method, path, body string, cookie *h
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	return response
+}
+
+func TestAdminBackupFlow(t *testing.T) {
+	handler := adminTestHandler(t)
+	setup := do(t, handler, http.MethodPost, "/api/v1/admin/setup",
+		`{"name":"Owner","email":"owner@example.com","password":"password123"}`, nil)
+	if setup.Code != http.StatusCreated {
+		t.Fatalf("setup status = %d, body = %s", setup.Code, setup.Body.String())
+	}
+	cookie := adminCookie(t, setup)
+
+	settings := do(t, handler, http.MethodPut, "/api/v1/admin/backups/settings",
+		`{"enabled":true,"frequency":"daily","runAt":"03:30","maxBackups":3}`, cookie)
+	if settings.Code != http.StatusOK || !strings.Contains(settings.Body.String(), `"runAt":"03:30"`) {
+		t.Fatalf("settings status = %d, body = %s", settings.Code, settings.Body.String())
+	}
+	created := do(t, handler, http.MethodPost, "/api/v1/admin/backups", "", cookie)
+	if created.Code != http.StatusCreated {
+		t.Fatalf("create status = %d, body = %s", created.Code, created.Body.String())
+	}
+	var result struct {
+		Data struct {
+			Name string `json:"name"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(created.Body.Bytes(), &result); err != nil || result.Data.Name == "" {
+		t.Fatalf("decode created backup: %v, body = %s", err, created.Body.String())
+	}
+	listed := do(t, handler, http.MethodGet, "/api/v1/admin/backups", "", cookie)
+	if listed.Code != http.StatusOK || !strings.Contains(listed.Body.String(), result.Data.Name) {
+		t.Fatalf("list status = %d, body = %s", listed.Code, listed.Body.String())
+	}
+	downloaded := do(t, handler, http.MethodGet, "/api/v1/admin/backups/"+result.Data.Name+"/download", "", cookie)
+	if downloaded.Code != http.StatusOK || downloaded.Header().Get("Content-Type") != "application/vnd.sqlite3" {
+		t.Fatalf("download status = %d, type = %s", downloaded.Code, downloaded.Header().Get("Content-Type"))
+	}
+	if unauthenticated := do(t, handler, http.MethodGet, "/api/v1/admin/backups", "", nil); unauthenticated.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthenticated status = %d", unauthenticated.Code)
+	}
 }
 
 func adminCookie(t *testing.T, response *httptest.ResponseRecorder) *http.Cookie {

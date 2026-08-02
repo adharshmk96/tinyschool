@@ -30,7 +30,7 @@ export function useSchoolContext() {
 
   function currentYearForToday(years: AcademicYear[]) {
     const currentDate = today()
-    return years.find(item => item.startDate <= currentDate && currentDate <= item.endDate)
+    return years.find(item => item.endDate && item.startDate <= currentDate && currentDate <= item.endDate)
   }
 
   function selectCurrentYear() {
